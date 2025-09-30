@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "109940890099",
+    "project_id": "attendance-tracker-1d3f2",
+    "storage_bucket": "attendance-tracker-1d3f2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:109940890099:android:b78aae0b4325d08d4fda86",
+        "android_client_info": {
+          "package_name": "com.example.attendance_management"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "109940890099-d6vmd5a1gpgi857c1ka13r9dcfe2unv8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAa021qtHdfXr2G0knszbTzIM-ugfpjNs8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "109940890099-d6vmd5a1gpgi857c1ka13r9dcfe2unv8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
