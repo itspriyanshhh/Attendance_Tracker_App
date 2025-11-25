@@ -1,5 +1,6 @@
 import 'package:attendance_management/main.dart';
 import 'package:attendance_management/models/subject.dart';
+import 'package:attendance_management/screens/safe_bunk_sheet.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -249,6 +250,48 @@ class AttendanceHomeState extends State<AttendanceHome> {
                       color: Colors.white,
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // Calculate current totals
+                      final Map<String, int> pointsPerSubject = {
+                        for (var s in _subjects) s.id!: (s.isLab ? 2 : 1),
+                      };
+                      int totalPoints = 0;
+                      int attendedPoints = 0;
+                      for (var record in _records) {
+                        final ptsPerSession =
+                            pointsPerSubject[record.subjectId] ?? 1;
+                        totalPoints += record.held * ptsPerSession;
+                        attendedPoints += record.attended * ptsPerSession;
+                      }
+
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => SafeBunkSheet(
+                          totalPointsHeld: totalPoints,
+                          totalPointsAttended: attendedPoints,
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.calculate, color: Colors.indigo),
+                    label: const Text(
+                      'Safe Bunk Calculator',
+                      style: TextStyle(
+                        color: Colors.indigo,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.indigo,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                     ),
                   ),
                 ],
