@@ -71,6 +71,12 @@ class FirestoreService {
     await _subjectsCollection().add(subject.toMap());
   }
 
+  Future<void> updateSubject(Subject subject) async {
+    if (subject.id != null) {
+      await _subjectsCollection().doc(subject.id).update(subject.toMap());
+    }
+  }
+
   Future<void> deleteSubject(String id) async {
     await _recordsCollection().where('subjectId', isEqualTo: id).get().then((
       snapshot,

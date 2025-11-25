@@ -1,6 +1,7 @@
 import 'package:attendance_management/main.dart';
 import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/screens/safe_bunk_sheet.dart';
+import 'package:attendance_management/screens/timetable_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,7 +41,32 @@ class AttendanceHomeState extends State<AttendanceHome> {
     setState(() {
       _subjects = subjects;
       _records = records;
+      _sortSubjects();
       _calculateTotalAttendance();
+    });
+  }
+
+  void _sortSubjects() {
+    final today = DateTime.now().weekday; // 1=Mon, 7=Sun
+    _subjects.sort((a, b) {
+      // Check if subjects have class today
+      bool aHasClass = a.schedule.any((s) => s.dayOfWeek == today);
+      bool bHasClass = b.schedule.any((s) => s.dayOfWeek == today);
+
+      if (aHasClass && !bHasClass) return -1;
+      if (!aHasClass && bHasClass) return 1;
+
+      // If both have class today, sort by time
+      if (aHasClass && bHasClass) {
+        final aSlot = a.schedule.firstWhere((s) => s.dayOfWeek == today);
+        final bSlot = b.schedule.firstWhere((s) => s.dayOfWeek == today);
+        final aMin = aSlot.startTime.hour * 60 + aSlot.startTime.minute;
+        final bMin = bSlot.startTime.hour * 60 + bSlot.startTime.minute;
+        return aMin.compareTo(bMin);
+      }
+
+      // Otherwise alphabetical
+      return a.name.compareTo(b.name);
     });
   }
 
@@ -216,6 +242,19 @@ class AttendanceHomeState extends State<AttendanceHome> {
             ),
           ),
 
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            tooltip: 'Timetable',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TimetableScreen(),
+                ),
+              );
+              _loadData(); // Refresh to re-sort if schedule changed
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _addSubject(context),

@@ -1,0 +1,257 @@
+import 'package:attendance_management/models/subject.dart';
+import 'package:attendance_management/services/firestore_service.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+class TimetableScreen extends StatefulWidget {
+  const TimetableScreen({super.key});
+
+  @override
+  State<TimetableScreen> createState() => _TimetableScreenState();
+}
+
+class _TimetableScreenState extends State<TimetableScreen> {
+  List<Subject> _subjects = [];
+  bool _isLoading = true;
+
+  // 1 = Mon, 7 = Sun
+  final List<String> _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSubjects();
+  }
+
+  Future<void> _loadSubjects() async {
+    final subjects = await FirestoreService.instance.getAllSubjects();
+    setState(() {
+      _subjects = subjects;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _addSlot(int dayIndex) async {
+    // Show dialog to pick subject and time
+    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
+    Subject? selectedSubject;
+
+    if (_subjects.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No subjects available. Add subjects first.'),
+        ),
+      );
+      return;
+    }
+
+    selectedSubject = _subjects.first;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Add Class on ${_days[dayIndex - 1]}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButton<Subject>(
+                value: selectedSubject,
+                isExpanded: true,
+                items: _subjects.map((s) {
+                  return DropdownMenuItem(value: s, child: Text(s.name));
+                }).toList(),
+                onChanged: (val) => setDialogState(() => selectedSubject = val),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                title: const Text('Time'),
+                trailing: Text(selectedTime.format(context)),
+                onTap: () async {
+                  final t = await showTimePicker(
+                    context: context,
+                    initialTime: selectedTime,
+                  );
+                  if (t != null) {
+                    setDialogState(() => selectedTime = t);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Add slot to subject
+                if (selectedSubject != null) {
+                  final newSlot = ScheduleSlot(
+                    dayOfWeek: dayIndex,
+                    startTime: selectedTime,
+                  );
+
+                  // Update subject in local list and Firestore
+                  // We need to update the specific subject instance
+                  final subjectIndex = _subjects.indexWhere(
+                    (s) => s.id == selectedSubject!.id,
+                  );
+                  if (subjectIndex != -1) {
+                    final updatedSubject = _subjects[subjectIndex];
+                    updatedSubject.schedule.add(newSlot);
+
+                    // Sort schedule by day then time
+                    updatedSubject.schedule.sort((a, b) {
+                      if (a.dayOfWeek != b.dayOfWeek)
+                        return a.dayOfWeek.compareTo(b.dayOfWeek);
+                      final aMin = a.startTime.hour * 60 + a.startTime.minute;
+                      final bMin = b.startTime.hour * 60 + b.startTime.minute;
+                      return aMin.compareTo(bMin);
+                    });
+
+                    await FirestoreService.instance.updateSubject(
+                      updatedSubject,
+                    );
+                    setState(() {}); // refresh UI
+                  }
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _removeSlot(Subject subject, ScheduleSlot slot) async {
+    subject.schedule.remove(slot);
+    await FirestoreService.instance.updateSubject(subject);
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Timetable',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        elevation: 0,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: 7,
+              itemBuilder: (context, index) {
+                final dayNum = index + 1;
+                final dayName = _days[index];
+
+                // Find all slots for this day across all subjects
+                List<Map<String, dynamic>> daySlots = [];
+                for (var subject in _subjects) {
+                  for (var slot in subject.schedule) {
+                    if (slot.dayOfWeek == dayNum) {
+                      daySlots.add({'subject': subject, 'slot': slot});
+                    }
+                  }
+                }
+
+                // Sort by time
+                daySlots.sort((a, b) {
+                  final slotA = a['slot'] as ScheduleSlot;
+                  final slotB = b['slot'] as ScheduleSlot;
+                  final minA =
+                      slotA.startTime.hour * 60 + slotA.startTime.minute;
+                  final minB =
+                      slotB.startTime.hour * 60 + slotB.startTime.minute;
+                  return minA.compareTo(minB);
+                });
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              dayName,
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.add_circle_outline,
+                                color: Colors.indigo,
+                              ),
+                              onPressed: () => _addSlot(dayNum),
+                            ),
+                          ],
+                        ),
+                        if (daySlots.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'No classes',
+                              style: GoogleFonts.poppins(color: Colors.grey),
+                            ),
+                          )
+                        else
+                          ...daySlots.map((item) {
+                            final subject = item['subject'] as Subject;
+                            final slot = item['slot'] as ScheduleSlot;
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Container(
+                                width: 4,
+                                height: 40,
+                                color: subject.isLab
+                                    ? Colors.orange
+                                    : Colors.blue,
+                              ),
+                              title: Text(
+                                subject.name,
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                slot.startTime.format(context),
+                                style: GoogleFonts.poppins(
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 20,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => _removeSlot(subject, slot),
+                              ),
+                            );
+                          }).toList(),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
