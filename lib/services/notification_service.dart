@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/material.dart';
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
   NotificationService._();
@@ -45,28 +47,103 @@ class NotificationService {
     await _fln.show(id, title, body, platformDetails);
   }
 
-  /// Schedules a weekly notification for a class
-  Future<void> scheduleClassPrompt(
-    String subjectName,
-    int dayOfWeek,
-    TimeOfDay time,
-  ) async {
-    // Calculate next occurrence of the day/time
-    // Note: This is a simplified version. In a real app, use timezone package.
-    // For now, we'll just show a basic implementation pattern.
+  /// Cancels all scheduled notifications
+  Future<void> cancelAll() async {
+    await _fln.cancelAll();
+  }
 
-    // We need to use zonedSchedule for precise scheduling, but that requires timezone initialization.
-    // For this task, I'll use a simpler approach or assume timezone is initialized in main.
-    // Since I can't easily add the timezone package dependency and init code without potentially breaking things,
-    // I will implement a "best effort" scheduling or just a standard show for now if complex scheduling is too risky.
+  /// Schedules weekly reminders for all classes
+  Future<void> scheduleClassReminders(List<Subject> subjects) async {
+    // First, clear existing to avoid duplicates/stale schedules
+    await cancelAll();
 
-    // Actually, the prompt asked for "Smart Notifications: Send a silent notification at 10:55 AM".
-    // I'll add the method signature and a basic implementation.
+    int notificationId = 1000; // Start ID range for class reminders
 
-    print(
-      'Scheduling notification for $subjectName on day $dayOfWeek at ${time.hour}:${time.minute.toString().padLeft(2, '0')}',
+    for (var subject in subjects) {
+      for (var slot in subject.schedule) {
+        // Schedule for 10 minutes AFTER class starts (assuming 1 hour duration for simplicity,
+        // or just "Did you attend?" prompt shortly after start).
+        // The prompt asked for "10 minutes after each class ends".
+        // Without duration data, I'll assume a standard 1-hour class, so 1h 10m after start.
+        // Or better, just 50 mins after start (end of typical hour).
+
+        // Let's go with: 10 mins after start "Don't forget to mark attendance!"
+        // Or if strictly "after ends", I'll assume 60 min duration -> 70 mins after start.
+
+        // Let's use 10 mins after class ENDS. Assuming 1 hour duration.
+        // So trigger at StartTime + 70 minutes.
+
+        await _scheduleWeekly(
+          id: notificationId++,
+          title: 'Class Ended: ${subject.name}',
+          body: 'Did you attend ${subject.name}? Mark it now!',
+          dayOfWeek: slot.dayOfWeek,
+          hour: slot.startTime.hour,
+          minute: slot.startTime.minute,
+          addMinutes: 70,
+        );
+      }
+    }
+  }
+
+  Future<void> _scheduleWeekly({
+    required int id,
+    required String title,
+    required String body,
+    required int dayOfWeek, // 1=Mon, 7=Sun
+    required int hour,
+    required int minute,
+    required int addMinutes,
+  }) async {
+    final now = tz.TZDateTime.now(tz.local);
+
+    // Calculate the next occurrence of this day/time
+    // 1. Create date for today with target time
+    var scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    ).add(Duration(minutes: addMinutes));
+
+    // 2. Adjust to correct day of week
+    // dayOfWeek in Dart: 1=Mon...7=Sun
+    // scheduledDate.weekday: 1=Mon...7=Sun
+    while (scheduledDate.weekday != dayOfWeek) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+
+    // 3. If it's in the past, add 7 days
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 7));
+    }
+
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'class_reminders',
+          'Class Reminders',
+          channelDescription: 'Reminders to mark attendance after class',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        );
+
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
     );
-    // Note: context is not available here, just print for now.
+
+    await _fln.zonedSchedule(
+      id,
+      title,
+      body,
+      scheduledDate,
+      platformDetails,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    );
+
+    print('Scheduled #$id: $title at $scheduledDate');
   }
 }
 

@@ -1,5 +1,6 @@
 import 'package:attendance_management/main.dart';
 import 'package:attendance_management/screens/login_screen.dart';
+import 'package:attendance_management/screens/profile_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
 import 'package:attendance_management/services/pdf_service.dart';
@@ -257,6 +258,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.only(bottom: 24),
           children: [
+            _buildSectionHeader('ACCOUNT', context),
+            _buildSettingTile(
+              context,
+              icon: Icons.person_rounded,
+              title: 'My Profile',
+              subtitle: 'View account details',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
+                  ),
+                );
+              },
+            ),
+
             _buildSectionHeader('APPEARANCE', context),
             _buildSettingTile(
               context,
@@ -324,7 +341,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: _isProcessing ? null : _generateReport,
             ),
 
-            _buildSectionHeader('ACCOUNT', context),
+            _buildSectionHeader('SESSION', context),
             _buildSettingTile(
               context,
               icon: Icons.logout_rounded,

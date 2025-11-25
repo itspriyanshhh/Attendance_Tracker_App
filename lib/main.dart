@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
 final ValueNotifier<bool> isDarkMode = ValueNotifier<bool>(false);
 
@@ -24,6 +25,8 @@ void main() async {
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp();
   }
+  // Initialize timezone
+  tz.initializeTimeZones();
   await NotificationService.instance.init();
   await _loadDarkMode();
   AttendanceMonitor.instance.start();

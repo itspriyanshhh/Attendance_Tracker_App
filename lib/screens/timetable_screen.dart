@@ -1,5 +1,6 @@
 import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -114,6 +115,12 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     await FirestoreService.instance.updateSubject(
                       updatedSubject,
                     );
+
+                    // Reschedule notifications
+                    await NotificationService.instance.scheduleClassReminders(
+                      _subjects,
+                    );
+
                     setState(() {}); // refresh UI
                   }
                 }
@@ -162,6 +169,8 @@ class _TimetableScreenState extends State<TimetableScreen> {
       try {
         await FirestoreService.instance.clearAllTimetables();
         await _loadSubjects();
+        // Clear notifications
+        await NotificationService.instance.cancelAll();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -183,6 +192,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
   Future<void> _removeSlot(Subject subject, ScheduleSlot slot) async {
     subject.schedule.remove(slot);
     await FirestoreService.instance.updateSubject(subject);
+    await NotificationService.instance.scheduleClassReminders(_subjects);
     setState(() {});
   }
 
