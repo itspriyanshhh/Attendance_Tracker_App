@@ -13,7 +13,8 @@ final ValueNotifier<bool> isDarkMode = ValueNotifier<bool>(false);
 Future<void> _loadDarkMode() async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    isDarkMode.value = prefs.getBool('darkMode') ?? false;
+    isDarkMode.value =
+        prefs.getBool('darkMode') ?? true; // Default to dark theme
   } catch (e) {
     // ignore errors and keep default
     print('Failed to load dark mode pref: $e');

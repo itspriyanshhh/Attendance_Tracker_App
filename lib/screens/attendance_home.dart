@@ -3,6 +3,8 @@ import 'package:attendance_management/screens/safe_bunk_sheet.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../main.dart' show isDarkMode;
 
 class AttendanceHome extends StatefulWidget {
   const AttendanceHome({super.key});
@@ -352,6 +354,30 @@ class AttendanceHomeState extends State<AttendanceHome>
         elevation: 0,
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
+          // Theme Toggle Switch
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ValueListenableBuilder<bool>(
+              valueListenable: isDarkMode,
+              builder: (context, isDark, _) {
+                return IconButton(
+                  icon: Icon(
+                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                    color: colorScheme.primary,
+                  ),
+                  tooltip: isDark
+                      ? 'Switch to Light Mode'
+                      : 'Switch to Dark Mode',
+                  onPressed: () async {
+                    isDarkMode.value = !isDarkMode.value;
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('darkMode', isDarkMode.value);
+                  },
+                );
+              },
+            ),
+          ),
+          // Add Subject Button
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: InkWell(
