@@ -62,35 +62,50 @@ class NotificationService {
     return await _fln.pendingNotificationRequests();
   }
 
-  /// Schedules weekly reminders for all classes
+  /// Schedules daily reminders - one per day, 2 hours after the last class
   Future<void> scheduleClassReminders(List<Subject> subjects) async {
     // First, clear existing to avoid duplicates/stale schedules
     await cancelAll();
 
-    int notificationId = 1000; // Start ID range for class reminders
+    // Group all slots by day of week
+    Map<int, List<ScheduleSlot>> slotsByDay = {};
 
     for (var subject in subjects) {
       for (var slot in subject.schedule) {
-        // Schedule for 10 minutes AFTER class starts (assuming 1 hour duration for simplicity,
-        // or just "Did you attend?" prompt shortly after start).
-        // The prompt asked for "10 minutes after each class ends".
-        // Without duration data, I'll assume a standard 1-hour class, so 1h 10m after start.
-        // Or better, just 50 mins after start (end of typical hour).
+        slotsByDay.putIfAbsent(slot.dayOfWeek, () => []);
+        slotsByDay[slot.dayOfWeek]!.add(slot);
+      }
+    }
 
-        // Let's go with: 10 mins after start "Don't forget to mark attendance!"
-        // Or if strictly "after ends", I'll assume 60 min duration -> 70 mins after start.
+    int notificationId = 1000;
 
-        // Let's use 10 mins after class ENDS. Assuming 1 hour duration.
-        // So trigger at StartTime + 70 minutes.
+    // For each day that has classes, find the last class and schedule reminder 2 hours after
+    for (var dayOfWeek in slotsByDay.keys) {
+      final daySlots = slotsByDay[dayOfWeek]!;
 
+      // Find the slot with the latest start time
+      ScheduleSlot? lastSlot;
+      int latestMinutes = -1;
+
+      for (var slot in daySlots) {
+        final totalMinutes = slot.startTime.hour * 60 + slot.startTime.minute;
+        if (totalMinutes > latestMinutes) {
+          latestMinutes = totalMinutes;
+          lastSlot = slot;
+        }
+      }
+
+      if (lastSlot != null) {
+        // Schedule reminder 2 hours (120 minutes) after last class starts
+        // Assuming 1-hour class duration, this means 1 hour after class ends
         await _scheduleWeekly(
           id: notificationId++,
-          title: 'Class Ended: ${subject.name}',
-          body: 'Did you attend ${subject.name}? Mark it now!',
-          dayOfWeek: slot.dayOfWeek,
-          hour: slot.startTime.hour,
-          minute: slot.startTime.minute,
-          addMinutes: 70,
+          title: 'Mark Your Attendance',
+          body: 'Don\'t forget to mark your attendance for today!',
+          dayOfWeek: dayOfWeek,
+          hour: lastSlot.startTime.hour,
+          minute: lastSlot.startTime.minute,
+          addMinutes: 120, // 2 hours after class starts
         );
       }
     }
@@ -149,7 +164,7 @@ class NotificationService {
       body,
       scheduledDate,
       platformDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
 
