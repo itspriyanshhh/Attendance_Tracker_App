@@ -127,6 +127,59 @@ class _TimetableScreenState extends State<TimetableScreen> {
     );
   }
 
+  Future<void> _deleteAllTimetables() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Delete All Timetables?',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'This will remove all class schedules for all subjects. This action cannot be undone.',
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Delete All', style: GoogleFonts.poppins()),
+          ),
+        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _isLoading = true);
+      try {
+        await FirestoreService.instance.clearAllTimetables();
+        await _loadSubjects();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('All timetables deleted successfully'),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete timetables: $e')),
+          );
+        }
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   Future<void> _removeSlot(Subject subject, ScheduleSlot slot) async {
     subject.schedule.remove(slot);
     await FirestoreService.instance.updateSubject(subject);
@@ -142,6 +195,13 @@ class _TimetableScreenState extends State<TimetableScreen> {
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_forever, color: Colors.red),
+            tooltip: 'Delete All Timetables',
+            onPressed: _deleteAllTimetables,
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

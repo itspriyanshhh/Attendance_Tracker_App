@@ -148,4 +148,15 @@ class FirestoreService {
   Future<void> deleteRecord(String id) async {
     await _recordsCollection().doc(id).delete();
   }
+
+  Future<void> clearAllTimetables() async {
+    final snapshot = await _subjectsCollection().get();
+    for (final doc in snapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      data['id'] = doc.id;
+      final subject = Subject.fromMap(data);
+      subject.schedule.clear();
+      await updateSubject(subject);
+    }
+  }
 }

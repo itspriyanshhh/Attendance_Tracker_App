@@ -27,7 +27,9 @@ class AttendanceHome extends StatefulWidget {
 class AttendanceHomeState extends State<AttendanceHome> {
   List<Subject> _subjects = [];
   List<AttendanceRecord> _records = [];
+
   double _totalAttendance = 0.0;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -36,6 +38,7 @@ class AttendanceHomeState extends State<AttendanceHome> {
   }
 
   Future<void> _loadData() async {
+    setState(() => _isLoading = true);
     List<Subject> subjects = await FirestoreService.instance.getAllSubjects();
     List<AttendanceRecord> records = await FirestoreService.instance
         .getAllRecords();
@@ -44,6 +47,7 @@ class AttendanceHomeState extends State<AttendanceHome> {
       _records = records;
       _sortSubjects();
       _calculateTotalAttendance();
+      _isLoading = false;
     });
   }
 
@@ -416,7 +420,13 @@ class AttendanceHomeState extends State<AttendanceHome> {
 
             // Subject List
             Expanded(
-              child: _subjects.isEmpty
+              child: _isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: colorScheme.primary,
+                      ),
+                    )
+                  : _subjects.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -657,6 +667,7 @@ class AttendanceHomeState extends State<AttendanceHome> {
     );
   }
 
+  // ignore: unused_element
   String _calculateSafeBunk(int attended, int total) {
     if (total == 0) return 'N/A';
     final percentage = (attended / total) * 100;
