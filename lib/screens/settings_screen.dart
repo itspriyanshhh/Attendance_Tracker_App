@@ -1,4 +1,5 @@
 import 'package:attendance_management/main.dart';
+import 'package:attendance_management/screens/history_screen.dart';
 import 'package:attendance_management/screens/login_screen.dart';
 import 'package:attendance_management/screens/profile_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
@@ -314,6 +315,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             _buildSectionHeader('DATA MANAGEMENT', context),
+            _buildSettingTile(
+              context,
+              icon: Icons.history_rounded,
+              title: 'View History',
+              subtitle: 'Check past attendance records',
+              iconColor: Colors.purple,
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HistoryScreen(),
+                  ),
+                );
+              },
+            ),
             _buildSettingTile(
               context,
               icon: Icons.delete_forever_rounded,

@@ -1,22 +1,8 @@
-import 'package:attendance_management/main.dart';
-import 'package:attendance_management/screens/analytics_screen.dart';
 import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/screens/safe_bunk_sheet.dart';
-import 'package:attendance_management/screens/timetable_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-/// Persist user's dark-mode choice
-Future<void> _saveDarkMode(bool enabled) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('darkMode', enabled);
-  } catch (e) {
-    print('Failed to save dark mode pref: $e');
-  }
-}
 
 class AttendanceHome extends StatefulWidget {
   const AttendanceHome({super.key});
@@ -277,57 +263,29 @@ class AttendanceHomeState extends State<AttendanceHome> {
         elevation: 0,
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
-          ValueListenableBuilder<bool>(
-            valueListenable: isDarkMode,
-            builder: (context, dark, _) => IconButton(
-              tooltip: dark ? 'Switch to light mode' : 'Switch to dark mode',
-              icon: Icon(
-                dark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                // Ensure visibility in both modes by using onSurface
-                // In light mode, onSurface is dark (visible on light bg)
-                // In dark mode, onSurface is light (visible on dark bg)
-                // If the issue persists, we can force specific colors
-                color: dark ? Colors.amber : colorScheme.onSurface,
-              ),
-              onPressed: () async {
-                isDarkMode.value = !dark;
-                await _saveDarkMode(isDarkMode.value);
-              },
-            ),
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.calendar_month_rounded,
-              color: colorScheme.onSurface,
-            ),
-            tooltip: 'Timetable',
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TimetableScreen(),
-                ),
-              );
-              _loadData(); // Refresh to re-sort if schedule changed
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.bar_chart_rounded, color: colorScheme.onSurface),
-            tooltip: 'Analytics',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AnalyticsScreen(),
-                ),
-              );
-            },
-          ),
           Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              icon: Icon(Icons.add, color: colorScheme.onSurface),
-              onPressed: () => _addSubject(context),
+            padding: const EdgeInsets.only(right: 16),
+            child: InkWell(
+              onTap: () => _addSubject(context),
+              borderRadius: BorderRadius.circular(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: colorScheme.primary,
+                    size: 24,
+                  ),
+                  Text(
+                    'add subject',
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

@@ -52,6 +52,16 @@ class NotificationService {
     await _fln.cancelAll();
   }
 
+  /// Cancels a specific notification by ID
+  Future<void> cancel(int id) async {
+    await _fln.cancel(id);
+  }
+
+  /// Returns list of pending notifications
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    return await _fln.pendingNotificationRequests();
+  }
+
   /// Schedules weekly reminders for all classes
   Future<void> scheduleClassReminders(List<Subject> subjects) async {
     // First, clear existing to avoid duplicates/stale schedules

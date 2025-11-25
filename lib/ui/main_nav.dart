@@ -1,7 +1,8 @@
+import 'package:attendance_management/screens/analytics_screen.dart';
 import 'package:attendance_management/screens/attendance_home.dart';
 import 'package:attendance_management/screens/batch_mark_screen.dart';
-import 'package:attendance_management/screens/history_screen.dart';
 import 'package:attendance_management/screens/settings_screen.dart';
+import 'package:attendance_management/screens/timetable_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -26,8 +27,9 @@ class _MainNavState extends State<MainNav> {
     super.initState();
     _pages = [
       AttendanceHome(key: _attendanceHomeKey), // Home
+      const AnalyticsScreen(), // Analytics
       const BatchMarkScreen(), // Mark
-      const HistoryScreen(), // History
+      const TimetableScreen(), // Timetable
       const SettingsScreen(), // Settings
     ];
   }
@@ -91,19 +93,26 @@ class _MainNavState extends State<MainNav> {
                   _NavItem(
                     index: 1,
                     currentIndex: _currentIndex,
-                    icon: Icons.add_box_rounded,
-                    label: 'Mark',
+                    icon: Icons.bar_chart_rounded,
+                    label: 'Analytics',
                     onTap: _onTap,
                   ),
                   _NavItem(
                     index: 2,
                     currentIndex: _currentIndex,
-                    icon: Icons.history_rounded,
-                    label: 'History',
+                    icon: Icons.add_box_rounded,
+                    label: 'Mark',
                     onTap: _onTap,
                   ),
                   _NavItem(
                     index: 3,
+                    currentIndex: _currentIndex,
+                    icon: Icons.calendar_month_rounded,
+                    label: 'Timetable',
+                    onTap: _onTap,
+                  ),
+                  _NavItem(
+                    index: 4,
                     currentIndex: _currentIndex,
                     icon: Icons.settings_rounded,
                     label: 'Settings',
