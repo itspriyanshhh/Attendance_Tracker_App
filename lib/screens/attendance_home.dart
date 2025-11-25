@@ -1,4 +1,5 @@
 import 'package:attendance_management/main.dart';
+import 'package:attendance_management/screens/analytics_screen.dart';
 import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/screens/safe_bunk_sheet.dart';
 import 'package:attendance_management/screens/timetable_screen.dart';
@@ -308,6 +309,18 @@ class AttendanceHomeState extends State<AttendanceHome> {
                 ),
               );
               _loadData(); // Refresh to re-sort if schedule changed
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.bar_chart_rounded, color: colorScheme.onSurface),
+            tooltip: 'Analytics',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AnalyticsScreen(),
+                ),
+              );
             },
           ),
           Padding(
