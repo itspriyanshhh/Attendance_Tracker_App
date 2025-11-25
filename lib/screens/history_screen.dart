@@ -2,6 +2,7 @@ import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/screens/edit_day_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -27,6 +28,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String? _selectedMonthLabel; // e.g. "September 2025"
   List<String> _monthLabels = [];
   bool _showCalendar = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -34,82 +36,70 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _loadDates();
   }
 
-  Future<void> _deleteDate(String date) async {
-    final readable = _formatDate(date);
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete all attendance'),
-        content: Text(
-          'Are you sure you want to delete all attendance records for $readable? This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    try {
-      await FirestoreService.instance.deleteRecordsForDate(date);
-      // refresh UI
-      await _loadDates();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Deleted all attendance for $readable')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to delete records: $e')));
-    }
-  }
-
   Future<void> _loadDates() async {
-    // Load dates and records (and subjects) from repository (works offline via Repository)
-    final dates = await FirestoreService.instance.getUniqueDates();
-    final allRecords = await FirestoreService.instance.getAllRecords();
-    final allSubjects = await FirestoreService.instance.getAllSubjects();
+    print('DEBUG: _loadDates called');
+    setState(() => _isLoading = true);
+    try {
+      final dates = await FirestoreService.instance.getUniqueDates();
+      print('DEBUG: Fetched ${dates.length} dates: $dates');
 
-    // Build recordsByDate map
-    final Map<String, List<AttendanceRecord>> map = {};
-    for (var r in allRecords) {
-      map.putIfAbsent(r.date, () => []).add(r);
+      final allRecords = await FirestoreService.instance.getAllRecords();
+      print('DEBUG: Fetched ${allRecords.length} records');
+
+      final allSubjects = await FirestoreService.instance.getAllSubjects();
+      print('DEBUG: Fetched ${allSubjects.length} subjects');
+
+      // Build recordsByDate map
+      final Map<String, List<AttendanceRecord>> map = {};
+      for (var r in allRecords) {
+        map.putIfAbsent(r.date, () => []).add(r);
+      }
+
+      // Build month labels (unique month-year labels from dates)
+      final monthSet = <String>{};
+      for (var d in dates) {
+        try {
+          final dt = DateTime.parse(d);
+          monthSet.add(DateFormat('MMMM yyyy').format(dt));
+        } catch (e) {
+          print('Error parsing date $d: $e');
+        }
+      }
+      final months = monthSet.toList()
+        ..sort((a, b) {
+          try {
+            DateTime pa = DateFormat('MMMM yyyy').parse(a);
+            DateTime pb = DateFormat('MMMM yyyy').parse(b);
+            return pb.compareTo(pa);
+          } catch (e) {
+            return 0;
+          }
+        });
+
+      if (mounted) {
+        setState(() {
+          _dates = dates;
+          _recordsByDate = map;
+          _subjects = allSubjects;
+          _monthLabels = months;
+          _isLoading = false;
+        });
+        _applyFilters();
+      }
+    } catch (e, stack) {
+      print('Error loading history: $e');
+      print(stack);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading history: $e')));
+      }
     }
-
-    // Build month labels (unique month-year labels from dates)
-    final monthSet = <String>{};
-    for (var d in dates) {
-      final dt = DateTime.parse(d);
-      monthSet.add(DateFormat('MMMM yyyy').format(dt));
-    }
-    final months = monthSet.toList()
-      ..sort((a, b) {
-        // sort by date descending using parsed month-year - convert back to DateTime for sorting
-        DateTime pa = DateFormat('MMMM yyyy').parse(a);
-        DateTime pb = DateFormat('MMMM yyyy').parse(b);
-        return pb.compareTo(pa);
-      });
-
-    setState(() {
-      _dates = dates;
-      _recordsByDate = map;
-      _subjects = allSubjects;
-      _monthLabels = months;
-    });
-
-    _applyFilters();
   }
 
   void _applyFilters() {
+    print('DEBUG: _applyFilters called. _dates count: ${_dates.length}');
     List<String> result = _dates.where((dateStr) {
       // 1) search filter: check date formatted string or ISO date contains search text
       final formatted = DateFormat(
@@ -141,6 +131,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return true;
     }).toList();
 
+    print('DEBUG: _applyFilters result count: ${result.length}');
+
     // Keep descending date order (same as your existing approach)
     result.sort((a, b) => DateTime.parse(b).compareTo(DateTime.parse(a)));
 
@@ -168,10 +160,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<DropdownMenuItem<String?>> _subjectDropdownItems() {
     final items = <DropdownMenuItem<String?>>[];
     items.add(
-      const DropdownMenuItem<String?>(value: null, child: Text('All subjects')),
+      DropdownMenuItem<String?>(
+        value: null,
+        child: Text('All subjects', style: GoogleFonts.poppins()),
+      ),
     );
     for (var s in _subjects) {
-      items.add(DropdownMenuItem<String?>(value: s.id, child: Text(s.name)));
+      items.add(
+        DropdownMenuItem<String?>(
+          value: s.id,
+          child: Text(s.name, style: GoogleFonts.poppins()),
+        ),
+      );
     }
     return items;
   }
@@ -179,10 +179,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<DropdownMenuItem<String?>> _monthDropdownItems() {
     final items = <DropdownMenuItem<String?>>[];
     items.add(
-      const DropdownMenuItem<String?>(value: null, child: Text('All months')),
+      DropdownMenuItem<String?>(
+        value: null,
+        child: Text('All months', style: GoogleFonts.poppins()),
+      ),
     );
     for (var m in _monthLabels) {
-      items.add(DropdownMenuItem<String?>(value: m, child: Text(m)));
+      items.add(
+        DropdownMenuItem<String?>(
+          value: m,
+          child: Text(m, style: GoogleFonts.poppins()),
+        ),
+      );
     }
     return items;
   }
@@ -202,41 +210,57 @@ class _HistoryScreenState extends State<HistoryScreen> {
     ).then((_) => _loadDates());
   }
 
-  // Format date for list display
-  String _formatDate(String date) {
-    return DateFormat('MMMM d, yyyy').format(DateTime.parse(date));
-  }
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Attendance History')),
+      appBar: AppBar(
+        title: Text(
+          'History',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        elevation: 0,
+        backgroundColor: theme.scaffoldBackgroundColor,
+      ),
       body: SafeArea(
         bottom: true,
         child: Column(
           children: [
             // Search bar + calendar toggle
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.search),
-                        hintText:
-                            'Search by date (e.g. September 3, 2025) or ISO (yyyy-mm-dd)',
-                        border: OutlineInputBorder(),
-                        isDense: true,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Search date...',
+                        hintStyle: GoogleFonts.poppins(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: colorScheme.surfaceContainerHighest,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 0,
+                        ),
                       ),
+                      style: GoogleFonts.poppins(),
                       onChanged: _onSearchChanged,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
+                  const SizedBox(width: 12),
+                  IconButton.filledTonal(
                     tooltip: 'Toggle calendar view',
                     icon: Icon(
-                      _showCalendar ? Icons.view_list : Icons.calendar_today,
+                      _showCalendar
+                          ? Icons.view_list_rounded
+                          : Icons.calendar_month_rounded,
                     ),
                     onPressed: () =>
                         setState(() => _showCalendar = !_showCalendar),
@@ -247,32 +271,43 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
             // Filters row: subject + month
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String?>(
                       isExpanded: true,
                       value: _selectedSubjectId,
-                      decoration: const InputDecoration(
-                        labelText: 'Filter by subject',
-                        isDense: true,
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: 'Subject',
+                        labelStyle: GoogleFonts.poppins(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 14,
+                        ),
                       ),
                       items: _subjectDropdownItems(),
                       onChanged: _onSelectedSubjectChanged,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 200,
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: DropdownButtonFormField<String?>(
                       isExpanded: true,
                       value: _selectedMonthLabel,
-                      decoration: const InputDecoration(
-                        labelText: 'Filter by month',
-                        isDense: true,
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: 'Month',
+                        labelStyle: GoogleFonts.poppins(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 14,
+                        ),
                       ),
                       items: _monthDropdownItems(),
                       onChanged: _onMonthChanged,
@@ -284,50 +319,105 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
             // Calendar view or list view
             Expanded(
-              child: _showCalendar
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _showCalendar
                   ? Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: TableCalendar<AttendanceRecord>(
-                        firstDay: DateTime(2000),
-                        lastDay: DateTime.now(),
-                        focusedDay: DateTime.now(),
-                        availableCalendarFormats: const {
-                          CalendarFormat.month: 'Month',
-                        },
-                        calendarBuilders: CalendarBuilders(
-                          markerBuilder: (context, date, events) {
-                            final evs = _eventsForDay(date);
-                            if (evs.isEmpty) return const SizedBox.shrink();
-                            // small dot with count
-                            return Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  color: Colors.indigo[700],
-                                ),
-                                child: Text(
-                                  '${evs.length}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(color: colorScheme.outlineVariant),
+                        ),
+                        child: TableCalendar<AttendanceRecord>(
+                          firstDay: DateTime(2000),
+                          lastDay: DateTime.now(),
+                          focusedDay: DateTime.now(),
+                          availableCalendarFormats: const {
+                            CalendarFormat.month: 'Month',
+                          },
+                          headerStyle: HeaderStyle(
+                            titleTextStyle: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            formatButtonVisible: false,
+                          ),
+                          calendarStyle: CalendarStyle(
+                            defaultTextStyle: GoogleFonts.poppins(),
+                            weekendTextStyle: GoogleFonts.poppins(),
+                            todayDecoration: BoxDecoration(
+                              color: colorScheme.primary.withOpacity(0.3),
+                              shape: BoxShape.circle,
+                            ),
+                            todayTextStyle: GoogleFonts.poppins(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            selectedDecoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            selectedTextStyle: GoogleFonts.poppins(
+                              color: colorScheme.onPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          calendarBuilders: CalendarBuilders(
+                            markerBuilder: (context, date, events) {
+                              final evs = _eventsForDay(date);
+                              if (evs.isEmpty) return const SizedBox.shrink();
+                              // small dot with count
+                              return Align(
+                                alignment: Alignment.bottomCenter,
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: colorScheme.secondary,
+                                  ),
+                                  child: Text(
+                                    '${evs.length}',
+                                    style: GoogleFonts.poppins(
+                                      color: colorScheme.onSecondary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
+                          eventLoader: (date) => _eventsForDay(date),
+                          onDaySelected: _onDaySelected,
                         ),
-                        eventLoader: (date) => _eventsForDay(date),
-                        onDaySelected: _onDaySelected,
                       ),
                     )
                   : _filteredDates.isEmpty
-                  ? const Center(
-                      child: Text('No attendance records match the filter.'),
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.history_toggle_off,
+                            size: 64,
+                            color: colorScheme.outline,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No records found (Total: ${_dates.length})',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
@@ -350,38 +440,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            title: Text(_formatDate(date)),
-                            subtitle: subjectNames.isNotEmpty
-                                ? Text(subjectNames)
-                                : null,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit),
-                                  tooltip: 'Edit',
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            EditDayScreen(date: date),
-                                      ),
-                                    ).then((_) => _loadDates());
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
-                                  tooltip: 'Delete all records for this date',
-                                  onPressed: () => _deleteDate(date),
-                                ),
-                              ],
-                            ),
-
+                          elevation: 0,
+                          color: colorScheme.surfaceContainer,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -391,6 +456,76 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 ),
                               ).then((_) => _loadDates());
                             },
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 50,
+                                    height: 50,
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        DateFormat(
+                                          'd',
+                                        ).format(DateTime.parse(date)),
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: colorScheme.onPrimaryContainer,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          DateFormat(
+                                            'MMMM yyyy',
+                                          ).format(DateTime.parse(date)),
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        if (subjectNames.isNotEmpty)
+                                          Text(
+                                            subjectNames,
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.chevron_right_rounded,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              EditDayScreen(date: date),
+                                        ),
+                                      ).then((_) => _loadDates());
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         );
                       },

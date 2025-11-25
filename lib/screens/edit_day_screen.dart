@@ -2,6 +2,7 @@ import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 class EditDayScreen extends StatefulWidget {
@@ -93,44 +94,69 @@ class _EditDayScreenState extends State<EditDayScreen> {
       builder: (BuildContext dialogContext) => StatefulBuilder(
         builder: (BuildContext context, StateSetter dialogSetState) =>
             AlertDialog(
-              title: const Text('Add Record'),
+              title: Text(
+                'Add Record',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButton<Subject>(
+                  DropdownButtonFormField<Subject>(
                     value: selectedSubject,
+                    decoration: InputDecoration(
+                      labelText: 'Subject',
+                      labelStyle: GoogleFonts.poppins(),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     onChanged: (Subject? newValue) {
                       dialogSetState(() => selectedSubject = newValue);
                     },
                     items: availableSubjects.map((Subject subject) {
                       return DropdownMenuItem<Subject>(
                         value: subject,
-                        child: Text(subject.name),
+                        child: Text(subject.name, style: GoogleFonts.poppins()),
                       );
                     }).toList(),
                   ),
+                  const SizedBox(height: 16),
                   TextField(
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Sessions Held',
+                      labelStyle: GoogleFonts.poppins(),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     keyboardType: TextInputType.number,
                     onChanged: (value) => heldText = value,
+                    style: GoogleFonts.poppins(),
                   ),
+                  const SizedBox(height: 16),
                   TextField(
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Sessions Attended',
+                      labelStyle: GoogleFonts.poppins(),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     keyboardType: TextInputType.number,
                     onChanged: (value) => attendedText = value,
+                    style: GoogleFonts.poppins(),
                   ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.poppins(color: Colors.grey),
+                  ),
                 ),
-                ElevatedButton(
+                FilledButton(
                   onPressed: () async {
                     int? held = int.tryParse(heldText);
                     int? attended = int.tryParse(attendedText);
@@ -158,9 +184,12 @@ class _EditDayScreenState extends State<EditDayScreen> {
                       );
                     }
                   },
-                  child: const Text('Add'),
+                  child: Text('Add', style: GoogleFonts.poppins()),
                 ),
               ],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
       ),
     );
@@ -175,21 +204,29 @@ class _EditDayScreenState extends State<EditDayScreen> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-        title: const Text('Delete Record'),
+        title: Text(
+          'Delete Record',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
         content: Text(
           'Are you sure you want to delete the attendance record for ${subject.name} on ${_formatDate(record.date)}?',
+          style: GoogleFonts.poppins(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('Delete', style: GoogleFonts.poppins()),
           ),
         ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
 
@@ -214,17 +251,51 @@ class _EditDayScreenState extends State<EditDayScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Edit ${_formatDate(widget.date)}'),
+        title: Text(
+          'Edit ${_formatDate(widget.date)}',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        elevation: 0,
+        backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
-          IconButton(icon: const Icon(Icons.save), onPressed: _saveChanges),
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: IconButton.filled(
+              icon: const Icon(Icons.save),
+              tooltip: 'Save Changes',
+              onPressed: _saveChanges,
+            ),
+          ),
         ],
       ),
       body: SafeArea(
         bottom: true,
         child: _dayRecords.isEmpty
-            ? const Center(child: Text('No records for this day.'))
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.event_busy,
+                      size: 64,
+                      color: colorScheme.outline,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No records for this day',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              )
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: _dayRecords.length,
@@ -234,50 +305,119 @@ class _EditDayScreenState extends State<EditDayScreen> {
                     (s) => s.id == record.subjectId,
                     orElse: () => Subject(name: 'Unknown'),
                   );
-                  return Card(
+                  return Container(
                     margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                subject.name,
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.headlineMedium,
+                              Expanded(
+                                child: Text(
+                                  subject.name,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                               IconButton(
                                 icon: const Icon(
-                                  Icons.delete,
+                                  Icons.delete_outline_rounded,
                                   color: Colors.red,
                                 ),
                                 onPressed: () => _deleteRecord(record),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 16),
                           Row(
                             children: [
                               Expanded(
-                                child: TextField(
-                                  controller: _heldControllers[record.id],
-                                  decoration: const InputDecoration(
-                                    labelText: 'Held',
-                                  ),
-                                  keyboardType: TextInputType.number,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Held',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        color: colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _heldControllers[record.id],
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 12,
+                                            ),
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      style: GoogleFonts.poppins(),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: TextField(
-                                  controller: _attendedControllers[record.id],
-                                  decoration: const InputDecoration(
-                                    labelText: 'Attended',
-                                  ),
-                                  keyboardType: TextInputType.number,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Attended',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        color: colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller:
+                                          _attendedControllers[record.id],
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 12,
+                                            ),
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      style: GoogleFonts.poppins(),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],

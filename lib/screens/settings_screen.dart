@@ -4,6 +4,7 @@ import 'package:attendance_management/services/firestore_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,22 +33,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => AlertDialog(
         title: Text(
           'Delete all subjects',
-          style: TextStyle(color: Colors.white),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
-        content: const Text(
+        content: Text(
           'This will delete ALL subjects and their attendance records. This cannot be undone. Do you want to continue?',
+          style: GoogleFonts.poppins(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete all'),
+            child: Text('Delete all', style: GoogleFonts.poppins()),
           ),
         ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
 
@@ -81,22 +87,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => AlertDialog(
         title: Text(
           'Delete all history',
-          style: TextStyle(color: Colors.white),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
-        content: const Text(
+        content: Text(
           'This will delete ALL attendance history (all dates and records). This cannot be undone. Do you want to continue?',
+          style: GoogleFonts.poppins(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete all history'),
+            child: Text('Delete all history', style: GoogleFonts.poppins()),
           ),
         ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
 
@@ -146,125 +157,160 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Widget _buildSectionHeader(String title, BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      child: Text(
+        title,
+        style: GoogleFonts.poppins(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+    VoidCallback? onTap,
+    Color? iconColor,
+  }) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: (iconColor ?? theme.colorScheme.primary).withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: iconColor ?? theme.colorScheme.primary,
+            size: 20,
+          ),
+        ),
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        trailing: trailing,
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(
+          'Settings',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
         automaticallyImplyLeading: false,
+        elevation: 0,
+        backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.only(bottom: 24),
           children: [
-            SwitchListTile(
-              title: const Text('Dark mode'),
-              subtitle: const Text('Experience the dark mode'),
-              value: isDarkMode.value,
-              inactiveThumbColor: Colors.grey,
-              inactiveTrackColor: Colors.grey.shade300,
-              onChanged: (v) async {
-                isDarkMode.value = v;
-                // Save preference (you added _saveDarkMode earlier)
-                try {
-                  await _saveDarkMode(v);
-                } catch (_) {}
-                if (mounted) setState(() {});
-              },
+            _buildSectionHeader('APPEARANCE', context),
+            _buildSettingTile(
+              context,
+              icon: isDarkMode.value
+                  ? Icons.dark_mode_rounded
+                  : Icons.light_mode_rounded,
+              title: 'Dark Mode',
+              subtitle: 'Toggle application theme',
+              trailing: Switch(
+                value: isDarkMode.value,
+                onChanged: (v) async {
+                  isDarkMode.value = v;
+                  try {
+                    await _saveDarkMode(v);
+                  } catch (_) {}
+                  if (mounted) setState(() {});
+                },
+              ),
             ),
 
-            const SizedBox(height: 12),
-
-            // Delete all subjects
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              icon: _isProcessing
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.delete_forever, color: Colors.white),
-              label: Text(
-                _isProcessing ? 'Processing...' : 'Delete all subjects',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium!.copyWith(color: Colors.white),
-              ),
-              onPressed: _isProcessing ? null : _confirmAndDeleteAllSubjects,
-            ),
-
-            const SizedBox(height: 12),
-
-            // Delete all history
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              icon: _isProcessing
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.history_toggle_off, color: Colors.white),
-              label: Text(
-                _isProcessing ? 'Processing...' : 'Delete all history',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium!.copyWith(color: Colors.white),
-              ),
-              onPressed: _isProcessing ? null : _confirmAndDeleteAllHistory,
-            ),
-
-            const SizedBox(height: 24),
-
-            // Sign out
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              ),
-
-              icon: const Icon(Icons.logout),
-              label: Text(
-                _isProcessing ? 'Signing out...' : 'Sign out',
-                style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                  color: Colors.indigo,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              onPressed: _isProcessing ? null : _signOut,
-            ),
-
-            const SizedBox(height: 24),
-
-            ListTile(
-              leading: const Icon(Icons.notifications),
-              title: const Text('Low attendance notifications'),
-              subtitle: const Text('Enable or disable attendance reminders'),
-              trailing: const Icon(Icons.chevron_right),
+            _buildSectionHeader('NOTIFICATIONS', context),
+            _buildSettingTile(
+              context,
+              icon: Icons.notifications_active_rounded,
+              title: 'Attendance Reminders',
+              subtitle: 'Get notified when attendance is low',
+              trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Open notification settings')),
+                  SnackBar(
+                    content: Text(
+                      'Notification settings coming soon',
+                      style: GoogleFonts.poppins(),
+                    ),
+                  ),
                 );
               },
             ),
 
-            const SizedBox(height: 24),
-            Text(
-              'App version: 1.0.0',
-              style: Theme.of(context).textTheme.bodySmall,
+            _buildSectionHeader('DATA MANAGEMENT', context),
+            _buildSettingTile(
+              context,
+              icon: Icons.delete_forever_rounded,
+              title: 'Delete All Subjects',
+              subtitle: 'Remove all subjects and records',
+              iconColor: Colors.red,
+              onTap: _isProcessing ? null : _confirmAndDeleteAllSubjects,
+            ),
+            _buildSettingTile(
+              context,
+              icon: Icons.history_toggle_off_rounded,
+              title: 'Delete History',
+              subtitle: 'Clear all attendance history',
+              iconColor: Colors.red,
+              onTap: _isProcessing ? null : _confirmAndDeleteAllHistory,
+            ),
+
+            _buildSectionHeader('ACCOUNT', context),
+            _buildSettingTile(
+              context,
+              icon: Icons.logout_rounded,
+              title: 'Sign Out',
+              subtitle: 'Log out of your account',
+              onTap: _isProcessing ? null : _signOut,
+            ),
+
+            const SizedBox(height: 32),
+            Center(
+              child: Text(
+                'App Version 1.0.0',
+                style: GoogleFonts.poppins(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
             ),
           ],
         ),

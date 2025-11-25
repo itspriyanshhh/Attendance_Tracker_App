@@ -19,8 +19,6 @@ Future<void> _loadDarkMode() async {
   }
 }
 
-
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Firebase.apps.isEmpty) {
@@ -37,15 +35,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // light theme: (keep your existing theme code here — I've mirrored it)
+    // light theme
     final ThemeData lightTheme = ThemeData(
       primarySwatch: Colors.indigo,
       colorScheme: ColorScheme.fromSwatch(
         primarySwatch: Colors.indigo,
         accentColor: Colors.pinkAccent,
         backgroundColor: Colors.white,
-
-        // surface: const Color(0xFF1E1E1E),
       ),
       fontFamily: GoogleFonts.poppins().fontFamily,
       scaffoldBackgroundColor: const Color(0xFFF5F5F5),
@@ -65,7 +61,6 @@ class MyApp extends StatelessWidget {
       appBarTheme: const AppBarTheme(
         backgroundColor: Color(0xFFF5F5F5),
         elevation: 0,
-        // iconTheme: IconThemeData(color: Colors.white),
       ),
       textTheme: TextTheme(
         headlineLarge: GoogleFonts.poppins(
@@ -82,36 +77,49 @@ class MyApp extends StatelessWidget {
         bodyLarge: GoogleFonts.poppins(fontSize: 16, color: Colors.black),
         bodyMedium: GoogleFonts.poppins(fontSize: 14, color: Colors.black),
       ),
+      switchTheme: SwitchThemeData(
+        thumbColor: MaterialStateProperty.resolveWith((states) {
+          if (states.contains(MaterialState.selected)) {
+            return Colors.indigo;
+          }
+          return Colors.grey.shade600;
+        }),
+        trackColor: MaterialStateProperty.resolveWith((states) {
+          if (states.contains(MaterialState.selected)) {
+            return Colors.indigo.shade200;
+          }
+          return Colors.grey.shade300;
+        }),
+        trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
+      ),
     );
 
-    // dark theme: dark background (#121212) and adjusted colors for text/icons
+    // dark theme: revamped colors
     final ThemeData darkTheme = ThemeData.dark().copyWith(
       scaffoldBackgroundColor: const Color(0xFF121212),
-      primaryColor: Colors.indigo[200],
-      colorScheme: ColorScheme.dark(
-        primary: Colors.indigo[200]!,
-        background: const Color(0xFF121212),
-        surface: const Color.fromARGB(255, 80, 80, 80),
+      primaryColor: const Color(0xFF8C9EFF), // Pastel Indigo
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF8C9EFF),
+        surface: Color(0xFF1E1E1E), // Rich Dark Grey
+        surfaceContainer: Color(0xFF2C2C2C),
         onPrimary: Colors.black,
-        onSurface: Colors.white,
-
+        onSurface: Color(0xFFE0E0E0), // High emphasis off-white
+        onSurfaceVariant: Color(0xFFA0A0A0), // Medium emphasis grey
       ),
-
-
       appBarTheme: const AppBarTheme(
         backgroundColor: Color(0xFF121212),
         elevation: 0,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: Color(0xFFE0E0E0)),
       ),
       cardTheme: CardThemeData(
-        color: const Color.fromARGB(255, 62, 62, 62),
+        color: const Color(0xFF1E1E1E),
         elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: Colors.indigoAccent,
+          foregroundColor: Colors.black,
+          backgroundColor: const Color(0xFF8C9EFF),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -119,29 +127,52 @@ class MyApp extends StatelessWidget {
         ),
       ),
       textTheme: TextTheme(
-
         headlineLarge: GoogleFonts.poppins(
           fontSize: 32,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: const Color(0xFFE0E0E0),
         ),
         headlineMedium: GoogleFonts.poppins(
           fontSize: 24,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: const Color(0xFFE0E0E0),
         ),
-        bodySmall: GoogleFonts.poppins(fontSize: 12, color: Colors.white),
-        bodyLarge: GoogleFonts.poppins(fontSize: 16, color: Colors.white),
-        bodyMedium: GoogleFonts.poppins(fontSize: 14, color: Colors.white),
+        bodySmall: GoogleFonts.poppins(
+          fontSize: 12,
+          color: const Color(0xFFA0A0A0),
+        ),
+        bodyLarge: GoogleFonts.poppins(
+          fontSize: 16,
+          color: const Color(0xFFE0E0E0),
+        ),
+        bodyMedium: GoogleFonts.poppins(
+          fontSize: 14,
+          color: const Color(0xFFE0E0E0),
+        ),
       ),
-      iconTheme: const IconThemeData(color: Colors.white),
+      iconTheme: const IconThemeData(color: Color(0xFFE0E0E0)),
+      switchTheme: SwitchThemeData(
+        thumbColor: MaterialStateProperty.resolveWith((states) {
+          if (states.contains(MaterialState.selected)) {
+            return const Color(0xFF8C9EFF);
+          }
+          return Colors.grey.shade600;
+        }),
+        trackColor: MaterialStateProperty.resolveWith((states) {
+          if (states.contains(MaterialState.selected)) {
+            return const Color(0xFF8C9EFF).withOpacity(0.5);
+          }
+          return Colors.grey.shade800;
+        }),
+        trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
+      ),
     );
 
     return ValueListenableBuilder<bool>(
       valueListenable: isDarkMode,
       builder: (context, dark, _) {
         return MaterialApp(
-          title: 'Your New App Name',
+          title: 'Attendify',
           debugShowCheckedModeBanner: false,
           theme: lightTheme,
           darkTheme: darkTheme,
