@@ -2,6 +2,7 @@ import 'package:attendance_management/main.dart';
 import 'package:attendance_management/screens/login_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
+import 'package:attendance_management/services/pdf_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -125,6 +126,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to delete history: $e')));
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _generateReport() async {
+    setState(() => _isProcessing = true);
+    try {
+      await PdfService.generateAttendanceReport();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Report generated successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate report: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -291,6 +312,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: 'Clear all attendance history',
               iconColor: Colors.red,
               onTap: _isProcessing ? null : _confirmAndDeleteAllHistory,
+            ),
+
+            _buildSectionHeader('OFFICIAL REPORTS', context),
+            _buildSettingTile(
+              context,
+              icon: Icons.picture_as_pdf_rounded,
+              title: 'Export Attendance Report',
+              subtitle: 'Generate PDF report of your attendance',
+              iconColor: Colors.blue,
+              onTap: _isProcessing ? null : _generateReport,
             ),
 
             _buildSectionHeader('ACCOUNT', context),
