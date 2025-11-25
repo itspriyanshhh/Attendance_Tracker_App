@@ -5,6 +5,7 @@ import 'package:attendance_management/services/firestore_service.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // add this class near top of the BatchMarkScreen file
 class SubjectMark {
@@ -63,8 +64,52 @@ class _BatchMarkScreenState extends State<BatchMarkScreen> {
 
   List<Subject> get _filteredSubjects {
     final q = _search.trim().toLowerCase();
-    if (q.isEmpty) return _subjects;
-    return _subjects.where((s) => s.name.toLowerCase().contains(q)).toList();
+    List<Subject> filtered;
+    if (q.isEmpty) {
+      filtered = List.of(_subjects);
+    } else {
+      filtered = _subjects
+          .where((s) => s.name.toLowerCase().contains(q))
+          .toList();
+    }
+
+    final dayOfWeek = _selectedDate.weekday;
+
+    filtered.sort((a, b) {
+      // Helper to find the earliest slot for today
+      ScheduleSlot? getEarliestSlot(Subject s) {
+        final slots = s.schedule
+            .where((slot) => slot.dayOfWeek == dayOfWeek)
+            .toList();
+        if (slots.isEmpty) return null;
+        slots.sort((s1, s2) {
+          final t1 = s1.startTime.hour * 60 + s1.startTime.minute;
+          final t2 = s2.startTime.hour * 60 + s2.startTime.minute;
+          return t1.compareTo(t2);
+        });
+        return slots.first;
+      }
+
+      final slotA = getEarliestSlot(a);
+      final slotB = getEarliestSlot(b);
+
+      // 1. Has slot today? (Scheduled comes first)
+      if (slotA != null && slotB == null) return -1;
+      if (slotA == null && slotB != null) return 1;
+
+      // 2. Start time (Earliest first)
+      if (slotA != null && slotB != null) {
+        final t1 = slotA.startTime.hour * 60 + slotA.startTime.minute;
+        final t2 = slotB.startTime.hour * 60 + slotB.startTime.minute;
+        final timeComp = t1.compareTo(t2);
+        if (timeComp != 0) return timeComp;
+      }
+
+      // 3. Name (Alphabetical)
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+
+    return filtered;
   }
 
   int get selectedCount =>
@@ -233,322 +278,403 @@ class _BatchMarkScreenState extends State<BatchMarkScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Mark Attendance')),
+      appBar: AppBar(
+        title: Text(
+          'Mark Attendance',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        elevation: 0,
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
-                  // calendar header
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            DateFormat('MMMM d, yyyy').format(_selectedDate),
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
+                  // Date Selection Header
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    decoration: BoxDecoration(
+                      color:
+                          theme.appBarTheme.backgroundColor ??
+                          theme.scaffoldBackgroundColor,
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(20),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.calendar_today_outlined),
-                          onPressed: () async {
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        InkWell(
+                          onTap: () async {
                             final picked = await showDatePicker(
                               context: context,
                               initialDate: _selectedDate,
                               firstDate: DateTime(2000),
                               lastDate: _maxPickableDate(),
                             );
-                            if (picked != null)
+                            if (picked != null) {
                               setState(() => _selectedDate = picked);
+                            }
                           },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 12,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.calendar_today_rounded,
+                                  color: colorScheme.primary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  DateFormat(
+                                    'MMMM d, yyyy',
+                                  ).format(_selectedDate),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.arrow_drop_down_rounded,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TableCalendar(
+                          firstDay: DateTime(2000),
+                          lastDay: _maxPickableDate(),
+                          focusedDay: _selectedDate,
+                          currentDay: DateTime.now(),
+                          selectedDayPredicate: (d) =>
+                              isSameDay(_selectedDate, d),
+                          onDaySelected: (d, _) =>
+                              setState(() => _selectedDate = d),
+                          headerVisible: false,
+                          calendarFormat: CalendarFormat.week,
+                          availableGestures: AvailableGestures.horizontalSwipe,
+                          calendarStyle: CalendarStyle(
+                            selectedDecoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            todayDecoration: BoxDecoration(
+                              color: colorScheme.primaryContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            todayTextStyle: GoogleFonts.poppins(
+                              color: colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            defaultTextStyle: GoogleFonts.poppins(),
+                            weekendTextStyle: GoogleFonts.poppins(
+                              color: colorScheme.error,
+                            ),
+                          ),
+                          daysOfWeekStyle: DaysOfWeekStyle(
+                            weekdayStyle: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            weekendStyle: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: colorScheme.error,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
 
-                  SizedBox(
-                    // height: 175,
-                    child: TableCalendar(
-                      firstDay: DateTime(2000),
-                      lastDay: _maxPickableDate(),
-                      focusedDay: _selectedDate,
-                      selectedDayPredicate: (d) =>
-                          DateFormat('yyyy-MM-dd').format(d) ==
-                          DateFormat('yyyy-MM-dd').format(_selectedDate),
-                      onDaySelected: (d, _) =>
-                          setState(() => _selectedDate = d),
-                      headerVisible: false,
-                      calendarStyle: CalendarStyle(
-                        todayDecoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withOpacity(0.9),
-                          shape: BoxShape.circle,
-                        ),
-                        selectedDecoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: 10),
 
+                  // Subject List
                   Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       itemCount: _filteredSubjects.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, i) {
                         final s = _filteredSubjects[i];
                         final sid = s.id!;
                         final mark = _marks[sid] ?? SubjectMark();
+                        final isSelected =
+                            mark.selected || mark.heldIncrement > 0;
 
-                        // Row: selection mode + counters
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 6,
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          elevation: isSelected ? 4 : 1,
+                          shadowColor: isSelected
+                              ? colorScheme.primary.withOpacity(0.3)
+                              : null,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: isSelected
+                                ? BorderSide(
+                                    color: colorScheme.primary,
+                                    width: 1.5,
+                                  )
+                                : BorderSide.none,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // top row: name + mode buttons
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      s.name,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyLarge
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  // Mode: None / Attended / Missed / Both
-                                  ToggleButtons(
-                                    isSelected: [
-                                      !(mark.selected) &&
-                                          mark.heldIncrement == 0, // None
-                                      mark.selected &&
-                                          mark.missed == 0 &&
-                                          mark.attended > 0, // Attended
-                                      mark.selected &&
-                                          mark.attended == 0 &&
-                                          mark.missed > 0, // Missed
-                                      mark.selected &&
-                                          mark.attended > 0 &&
-                                          mark.missed > 0, // Both
-                                    ],
-                                    onPressed: (index) {
-                                      setState(() {
-                                        mark.selected = true;
-                                        switch (index) {
-                                          case 0: // None
-                                            mark.selected = false;
-                                            mark.attended = 0;
-                                            mark.missed = 0;
-                                            break;
-                                          case 1: // Attended
-                                            mark.attended = mark.attended == 0
-                                                ? 1
-                                                : mark.attended;
-                                            mark.missed = 0;
-                                            break;
-                                          case 2: // Missed
-                                            mark.missed = mark.missed == 0
-                                                ? 1
-                                                : mark.missed;
-                                            mark.attended = 0;
-                                            break;
-                                          case 3: // Both
-                                            if (mark.attended == 0 &&
-                                                mark.missed == 0) {
-                                              mark.attended = 1;
-                                              mark.missed = 0;
-                                            }
-                                            // keep existing non-zero values if present
-                                            break;
-                                        }
-                                        _marks[sid] = mark;
-                                      });
-                                    },
-                                    children: const [
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 8,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        s.name,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: isSelected
+                                              ? colorScheme.primary
+                                              : colorScheme.onSurface,
                                         ),
-                                        child: Text('None'),
                                       ),
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                        ),
-                                        child: Text('Att.'),
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                        ),
-                                        child: Text('Miss.'),
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                        ),
-                                        child: Text('Both'),
-                                      ),
-                                    ],
-                                    borderRadius: BorderRadius.circular(8),
-                                    constraints: const BoxConstraints(
-                                      minHeight: 32,
-                                      minWidth: 48,
                                     ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 8),
-
-                              // counters row: Attended +/- and Missed +/- and small held summary
-                              Row(
-                                children: [
-                                  // Attended counter
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        const Text('Attended:'),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.remove_circle_outline,
-                                          ),
-                                          onPressed: mark.attended > 0
-                                              ? () {
-                                                  setState(() {
-                                                    mark.attended =
-                                                        (mark.attended - 1)
-                                                            .clamp(0, 999);
-                                                    if (mark.attended == 0 &&
-                                                        mark.missed == 0)
-                                                      mark.selected = false;
-                                                    _marks[sid] = mark;
-                                                  });
-                                                }
-                                              : null,
-                                        ),
-                                        Text('${mark.attended}'),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.add_circle_outline,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              mark.attended =
-                                                  (mark.attended + 1).clamp(
-                                                    0,
-                                                    999,
-                                                  );
-                                              mark.selected = true;
-                                              _marks[sid] = mark;
-                                            });
-                                          },
-                                        ),
-                                      ],
+                                    _buildStatusChip(mark, colorScheme),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildCounter(
+                                        context,
+                                        label: 'Attended',
+                                        value: mark.attended,
+                                        color: Colors.green,
+                                        onChanged: (val) {
+                                          setState(() {
+                                            mark.attended = val;
+                                            _updateSelection(mark, sid);
+                                          });
+                                        },
+                                      ),
                                     ),
-                                  ),
-                                  // SizedBox(width: 16),
-
-                                  // Missed counter
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        const Text('Missed:'),
-
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.remove_circle_outline,
-                                          ),
-                                          onPressed: mark.missed > 0
-                                              ? () {
-                                                  setState(() {
-                                                    mark.missed =
-                                                        (mark.missed - 1).clamp(
-                                                          0,
-                                                          999,
-                                                        );
-                                                    if (mark.attended == 0 &&
-                                                        mark.missed == 0)
-                                                      mark.selected = false;
-                                                    _marks[sid] = mark;
-                                                  });
-                                                }
-                                              : null,
-                                        ),
-                                        Text('${mark.missed}'),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.add_circle_outline,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              mark.missed = (mark.missed + 1)
-                                                  .clamp(0, 999);
-                                              mark.selected = true;
-                                              _marks[sid] = mark;
-                                            });
-                                          },
-                                        ),
-                                      ],
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _buildCounter(
+                                        context,
+                                        label: 'Missed',
+                                        value: mark.missed,
+                                        color: Colors.red,
+                                        onChanged: (val) {
+                                          setState(() {
+                                            mark.missed = val;
+                                            _updateSelection(mark, sid);
+                                          });
+                                        },
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },
                     ),
                   ),
 
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        SizedBox(width: 6),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            icon: _isSubmitting
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.check),
-                            onPressed: (selectedCount > 0 && !_isSubmitting)
-                                ? _confirmBatchMark
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            label: Text(
-                              _isSubmitting
-                                  ? 'Uploading...'
-                                  : 'Mark (${selectedCount})',
-                            ),
-                          ),
+                  // Bottom Action Bar
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.scaffoldBackgroundColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, -5),
                         ),
                       ],
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: FilledButton.icon(
+                        onPressed: (selectedCount > 0 && !_isSubmitting)
+                            ? _confirmBatchMark
+                            : null,
+                        icon: _isSubmitting
+                            ? SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: colorScheme.onPrimary,
+                                ),
+                              )
+                            : const Icon(Icons.check_circle_outline),
+                        label: Text(
+                          _isSubmitting
+                              ? 'Saving...'
+                              : 'Mark Attendance ($selectedCount)',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: FilledButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
+      ),
+    );
+  }
+
+  void _updateSelection(SubjectMark mark, String sid) {
+    if (mark.attended > 0 || mark.missed > 0) {
+      mark.selected = true;
+    } else {
+      mark.selected = false;
+    }
+    _marks[sid] = mark;
+  }
+
+  Widget _buildStatusChip(SubjectMark mark, ColorScheme colorScheme) {
+    String label = 'None';
+    Color color = colorScheme.surfaceContainerHighest;
+    Color onColor = colorScheme.onSurfaceVariant;
+
+    if (mark.attended > 0 && mark.missed > 0) {
+      label = 'Mixed';
+      color = Colors.orange.shade100;
+      onColor = Colors.orange.shade900;
+    } else if (mark.attended > 0) {
+      label = 'Present';
+      color = Colors.green.shade100;
+      onColor = Colors.green.shade900;
+    } else if (mark.missed > 0) {
+      label = 'Absent';
+      color = Colors.red.shade100;
+      onColor = Colors.red.shade900;
+    }
+
+    if (label == 'None') return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.poppins(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: onColor,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCounter(
+    BuildContext context, {
+    required String label,
+    required int value,
+    required Color color,
+    required ValueChanged<int> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              InkWell(
+                onTap: value > 0
+                    ? () => onChanged((value - 1).clamp(0, 99))
+                    : null,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: value > 0
+                        ? color.withOpacity(0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.remove,
+                    size: 20,
+                    color: value > 0 ? color : Colors.grey.shade400,
+                  ),
+                ),
+              ),
+              Text(
+                '$value',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: value > 0 ? color : Colors.grey,
+                ),
+              ),
+              InkWell(
+                onTap: () => onChanged((value + 1).clamp(0, 99)),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.add, size: 20, color: color),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
