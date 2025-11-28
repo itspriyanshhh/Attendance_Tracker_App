@@ -1,4 +1,6 @@
 import 'package:attendance_management/screens/login_screen.dart';
+import 'package:attendance_management/services/version_check_service.dart';
+import 'package:attendance_management/ui/force_update_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -83,21 +85,41 @@ class _SplashScreenState extends State<SplashScreen>
       _textController.forward();
     });
 
-    // Navigate after 3 seconds
-    Future.delayed(const Duration(milliseconds: 3000), () {
+    // Check for updates and navigate after 3 seconds
+    Future.delayed(const Duration(milliseconds: 3000), () async {
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const LoginScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
-            transitionDuration: const Duration(milliseconds: 400),
-          ),
-        );
+        // Check for update requirement
+        Map<String, dynamic> updateInfo =
+            await VersionCheckService.checkForUpdate();
+
+        if (updateInfo['updateRequired'] == true) {
+          // Show force update dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => ForceUpdateDialog(
+              message:
+                  updateInfo['message'] ??
+                  'A new version is available. Please update to continue.',
+              currentVersion: updateInfo['currentVersion'] ?? '1.0.0',
+              requiredVersion: updateInfo['minRequiredVersion'] ?? '1.0.0',
+            ),
+          );
+        } else {
+          // Proceed to login screen
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  const LoginScreen(),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
+              transitionDuration: const Duration(milliseconds: 400),
+            ),
+          );
+        }
       }
     });
   }

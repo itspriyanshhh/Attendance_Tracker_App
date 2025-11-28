@@ -1,6 +1,7 @@
 import 'package:attendance_management/main.dart';
 import 'package:attendance_management/screens/history_screen.dart';
 import 'package:attendance_management/screens/login_screen.dart';
+import 'package:attendance_management/screens/privacy_policy_screen.dart';
 import 'package:attendance_management/screens/profile_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
@@ -356,6 +357,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: 'Generate PDF report of your attendance',
               iconColor: Colors.blue,
               onTap: _isProcessing ? null : _generateReport,
+            ),
+
+            _buildSectionHeader('ABOUT & LEGAL', context),
+            _buildSettingTile(
+              context,
+              icon: Icons.privacy_tip_rounded,
+              title: 'Privacy Policy',
+              subtitle: 'How we handle your data',
+              iconColor: Colors.green,
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PrivacyPolicyScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildSettingTile(
+              context,
+              icon: Icons.info_rounded,
+              title: 'About Attendify',
+              subtitle: 'App information and credits',
+              iconColor: Colors.blue,
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
+                showAboutDialog(
+                  context: context,
+                  applicationName: 'Attendify',
+                  applicationVersion: '1.0.0 (1)',
+                  applicationLegalese:
+                      '© 2024 Priyansh Garg\n\nDesigned for college students to track and manage their attendance effortlessly.',
+                  applicationIcon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.calendar_today_rounded,
+                      size: 32,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                );
+              },
             ),
 
             _buildSectionHeader('SESSION', context),

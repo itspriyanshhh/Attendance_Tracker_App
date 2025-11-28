@@ -9,7 +9,44 @@
       "client_info": {
         "mobilesdk_app_id": "1:109940890099:android:b78aae0b4325d08d4fda86",
         "android_client_info": {
-          "package_name": "com.example.attendance_management"
+          "package_name": "com.priyanshhh.attendify"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "109940890099-a8lhmsv5bbrenfj98dagc19npo66mjar.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.attendance_management",
+            "certificate_hash": "d90961e575a642280bb0b052d7aea341117aaead"
+          }
+        },
+        {
+          "client_id": "109940890099-d6vmd5a1gpgi857c1ka13r9dcfe2unv8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAa021qtHdfXr2G0knszbTzIM-ugfpjNs8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "109940890099-d6vmd5a1gpgi857c1ka13r9dcfe2unv8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:109940890099:android:85c8b381fd84f2b24fda86",
+        "android_client_info": {
+          "package_name": "com.priyanshhh.attendify"
         }
       },
       "oauth_client": [
