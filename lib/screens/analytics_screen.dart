@@ -243,8 +243,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           show: true,
                           drawVerticalLine: false,
                           getDrawingHorizontalLine: (value) => FlLine(
-                            color: colorScheme.outlineVariant.withOpacity(0.5),
+                            color: colorScheme.outlineVariant.withOpacity(0.2),
                             strokeWidth: 1,
+                            dashArray: [5, 5], // Dashed grid lines
                           ),
                         ),
                         titlesData: FlTitlesData(
@@ -257,7 +258,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           ),
                           bottomTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
-                          ), // Hide dates for cleaner look
+                          ),
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
@@ -280,17 +281,79 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         maxX: (_trendSpots.length - 1).toDouble(),
                         minY: _minY,
                         maxY: _maxY,
+                        // Tooltip Configuration
+                        lineTouchData: LineTouchData(
+                          touchTooltipData: LineTouchTooltipData(
+                            getTooltipColor: (touchedSpot) =>
+                                colorScheme.surfaceContainerHighest,
+                            getTooltipItems: (touchedSpots) {
+                              return touchedSpots.map((
+                                LineBarSpot touchedSpot,
+                              ) {
+                                return LineTooltipItem(
+                                  '${touchedSpot.y.toStringAsFixed(1)}%',
+                                  GoogleFonts.poppins(
+                                    color: colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                );
+                              }).toList();
+                            },
+                          ),
+                        ),
+                        // 75% Threshold Line
+                        extraLinesData: ExtraLinesData(
+                          horizontalLines: [
+                            HorizontalLine(
+                              y: 75,
+                              color: Colors.green.withOpacity(0.5),
+                              strokeWidth: 2,
+                              dashArray: [10, 5],
+                              label: HorizontalLineLabel(
+                                show: true,
+                                alignment: Alignment.topRight,
+                                padding: const EdgeInsets.only(
+                                  right: 5,
+                                  bottom: 5,
+                                ),
+                                style: GoogleFonts.poppins(
+                                  color: Colors.green,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                labelResolver: (line) => '75%',
+                              ),
+                            ),
+                          ],
+                        ),
                         lineBarsData: [
                           LineChartBarData(
                             spots: _trendSpots,
                             isCurved: true,
                             color: colorScheme.primary,
-                            barWidth: 4,
+                            barWidth: 3,
                             isStrokeCapRound: true,
-                            dotData: const FlDotData(show: false),
+                            dotData: FlDotData(
+                              show: true,
+                              getDotPainter: (spot, percent, barData, index) {
+                                return FlDotCirclePainter(
+                                  radius: 4,
+                                  color: colorScheme.surface,
+                                  strokeWidth: 2,
+                                  strokeColor: colorScheme.primary,
+                                );
+                              },
+                            ),
                             belowBarData: BarAreaData(
                               show: true,
-                              color: colorScheme.primary.withOpacity(0.1),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  colorScheme.primary.withOpacity(0.3),
+                                  colorScheme.primary.withOpacity(0.0),
+                                ],
+                              ),
                             ),
                           ),
                         ],

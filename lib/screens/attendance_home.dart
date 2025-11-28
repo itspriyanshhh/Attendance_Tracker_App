@@ -62,8 +62,8 @@ class AttendanceHomeState extends State<AttendanceHome>
     super.dispose();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadData({bool showLoading = true}) async {
+    if (showLoading) setState(() => _isLoading = true);
     List<Subject> subjects = await FirestoreService.instance.getAllSubjects();
     List<AttendanceRecord> records = await FirestoreService.instance
         .getAllRecords();
@@ -545,291 +545,339 @@ class AttendanceHomeState extends State<AttendanceHome>
                         color: colorScheme.primary,
                       ),
                     )
-                  : _subjects.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.class_outlined,
-                            size: 64,
-                            color: colorScheme.outline,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No subjects added yet',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => _addSubject(context),
-                            child: Text(
-                              'Add your first subject',
-                              style: GoogleFonts.poppins(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _subjects.length,
-                      itemBuilder: (context, index) {
-                        Subject subject = _subjects[index];
-                        final percentage = _getSubjectPercentage(subject);
-                        final attended = _getSubjectAttendedSessions(subject);
-                        final total = _getSubjectTotalSessions(subject);
-                        final isDark =
-                            Theme.of(context).brightness == Brightness.dark;
-
-                        // Define colors based on Theme
-                        final cardColor = isDark
-                            ? const Color(0xFF2C2C2E)
-                            : Colors.white;
-                        final titleColor = isDark ? Colors.white : Colors.black;
-                        final labelColor = isDark
-                            ? Colors.grey
-                            : Colors.grey.shade600;
-
-                        // Status Colors (Green/Red)
-                        final greenColor = isDark
-                            ? const Color(0xFF30D158)
-                            : const Color(0xFF34C759);
-                        final redColor = isDark
-                            ? const Color(0xFFFF453A)
-                            : const Color(0xFFFF3B30);
-                        final statusColor = percentage >= 75
-                            ? greenColor
-                            : redColor;
-
-                        // Shadow Configuration
-                        final List<BoxShadow> shadows = isDark
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ];
-
-                        // Progress Bar Glow (Dark Mode Only)
-                        final List<BoxShadow>? progressShadows = isDark
-                            ? [
-                                BoxShadow(
-                                  color: statusColor.withOpacity(0.6),
-                                  blurRadius: 8,
-                                  spreadRadius: 1,
-                                ),
-                              ]
-                            : null;
-
-                        // Staggered card animation
-                        return TweenAnimationBuilder<double>(
-                          duration: Duration(milliseconds: 400 + (index * 100)),
-                          curve: Curves.easeOut,
-                          tween: Tween<double>(begin: 0.0, end: 1.0),
-                          builder: (context, animValue, child) {
-                            return Opacity(
-                              opacity: animValue,
-                              child: Transform.translate(
-                                offset: Offset(0, 30 * (1 - animValue)),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            decoration: BoxDecoration(
-                              color: cardColor,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: shadows,
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(24),
-                                onTap: () => _deleteSubject(subject),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(20),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // Row 1: Name and Percentage
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              subject.name,
+                  : RefreshIndicator(
+                      onRefresh: () => _loadData(showLoading: false),
+                      color: colorScheme.primary,
+                      child: _subjects.isEmpty
+                          ? LayoutBuilder(
+                              builder: (context, constraints) =>
+                                  SingleChildScrollView(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        minHeight: constraints.maxHeight,
+                                      ),
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.class_outlined,
+                                              size: 64,
+                                              color: colorScheme.outline,
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              'No subjects added yet',
                                               style: GoogleFonts.poppins(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
-                                                color: titleColor,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            '${percentage.toStringAsFixed(0)}%',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: statusColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      // Row 2: Badge and "Attendance" Label
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: subject.isLab
-                                                  ? (isDark
-                                                        ? Colors.orange.shade300
-                                                              .withOpacity(0.2)
-                                                        : Colors.orange
-                                                              .withOpacity(0.2))
-                                                  : (isDark
-                                                        ? Colors.blue.shade300
-                                                              .withOpacity(0.2)
-                                                        : Colors.blue
-                                                              .withOpacity(
-                                                                0.2,
-                                                              )),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            child: Text(
-                                              subject.isLab ? 'Lab' : 'Lecture',
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                                color: subject.isLab
-                                                    ? (isDark
-                                                          ? Colors
-                                                                .orange
-                                                                .shade300
-                                                          : Colors
-                                                                .orange
-                                                                .shade800)
-                                                    : (isDark
-                                                          ? Colors.blue.shade300
-                                                          : Colors
-                                                                .blue
-                                                                .shade800),
+                                                fontSize: 16,
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
                                               ),
                                             ),
-                                          ),
-                                          Text(
-                                            'Attendance',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 12,
-                                              color: labelColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 20),
-                                      // Custom Progress Bar
-                                      Stack(
-                                        children: [
-                                          Container(
-                                            height: 10,
-                                            width: double.infinity,
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey.withOpacity(
-                                                0.2,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(5),
-                                            ),
-                                          ),
-                                          FractionallySizedBox(
-                                            widthFactor: (percentage / 100)
-                                                .clamp(0.0, 1.0),
-                                            child: Container(
-                                              height: 10,
-                                              decoration: BoxDecoration(
-                                                color: statusColor,
-                                                borderRadius:
-                                                    BorderRadius.circular(5),
-                                                boxShadow: progressShadows,
+                                            TextButton(
+                                              onPressed: () =>
+                                                  _addSubject(context),
+                                              child: Text(
+                                                'Add your first subject',
+                                                style: GoogleFonts.poppins(),
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                      const SizedBox(height: 16),
-                                      // Row 3: Attended and Total
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            'Attended: $attended',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 14,
-                                              color: labelColor,
-                                            ),
-                                          ),
-                                          Text(
-                                            'Total: $total',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 14,
-                                              color: labelColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                    ),
                                   ),
-                                ),
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
                               ),
+                              itemCount: _subjects.length,
+                              itemBuilder: (context, index) {
+                                Subject subject = _subjects[index];
+                                final percentage = _getSubjectPercentage(
+                                  subject,
+                                );
+                                final attended = _getSubjectAttendedSessions(
+                                  subject,
+                                );
+                                final total = _getSubjectTotalSessions(subject);
+                                final isDark =
+                                    Theme.of(context).brightness ==
+                                    Brightness.dark;
+
+                                // Define colors based on Theme
+                                final cardColor = isDark
+                                    ? const Color(0xFF2C2C2E)
+                                    : Colors.white;
+                                final titleColor = isDark
+                                    ? Colors.white
+                                    : Colors.black;
+                                final labelColor = isDark
+                                    ? Colors.grey
+                                    : Colors.grey.shade600;
+
+                                // Status Colors (Green/Red)
+                                final greenColor = isDark
+                                    ? const Color(0xFF30D158)
+                                    : const Color(0xFF34C759);
+                                final redColor = isDark
+                                    ? const Color(0xFFFF453A)
+                                    : const Color(0xFFFF3B30);
+                                final statusColor = percentage >= 75
+                                    ? greenColor
+                                    : redColor;
+
+                                // Shadow Configuration
+                                final List<BoxShadow> shadows = isDark
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.2),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ]
+                                    : [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ];
+
+                                // Progress Bar Glow (Dark Mode Only)
+                                final List<BoxShadow>? progressShadows = isDark
+                                    ? [
+                                        BoxShadow(
+                                          color: statusColor.withOpacity(0.6),
+                                          blurRadius: 8,
+                                          spreadRadius: 1,
+                                        ),
+                                      ]
+                                    : null;
+
+                                // Staggered card animation
+                                return TweenAnimationBuilder<double>(
+                                  duration: Duration(
+                                    milliseconds: 400 + (index * 100),
+                                  ),
+                                  curve: Curves.easeOut,
+                                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                                  builder: (context, animValue, child) {
+                                    return Opacity(
+                                      opacity: animValue,
+                                      child: Transform.translate(
+                                        offset: Offset(0, 30 * (1 - animValue)),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    decoration: BoxDecoration(
+                                      color: cardColor,
+                                      borderRadius: BorderRadius.circular(24),
+                                      boxShadow: shadows,
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(24),
+                                        onTap: () => _deleteSubject(subject),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(20),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              // Row 1: Name and Percentage
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      subject.name,
+                                                      style:
+                                                          GoogleFonts.poppins(
+                                                            fontSize: 20,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: titleColor,
+                                                          ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    '${percentage.toStringAsFixed(0)}%',
+                                                    style: GoogleFonts.poppins(
+                                                      fontSize: 24,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: statusColor,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              // Row 2: Badge and "Attendance" Label
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 10,
+                                                          vertical: 4,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: subject.isLab
+                                                          ? (isDark
+                                                                ? Colors
+                                                                      .orange
+                                                                      .shade300
+                                                                      .withOpacity(
+                                                                        0.2,
+                                                                      )
+                                                                : Colors.orange
+                                                                      .withOpacity(
+                                                                        0.2,
+                                                                      ))
+                                                          : (isDark
+                                                                ? Colors
+                                                                      .blue
+                                                                      .shade300
+                                                                      .withOpacity(
+                                                                        0.2,
+                                                                      )
+                                                                : Colors.blue
+                                                                      .withOpacity(
+                                                                        0.2,
+                                                                      )),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      subject.isLab
+                                                          ? 'Lab'
+                                                          : 'Lecture',
+                                                      style: GoogleFonts.poppins(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        color: subject.isLab
+                                                            ? (isDark
+                                                                  ? Colors
+                                                                        .orange
+                                                                        .shade300
+                                                                  : Colors
+                                                                        .orange
+                                                                        .shade800)
+                                                            : (isDark
+                                                                  ? Colors
+                                                                        .blue
+                                                                        .shade300
+                                                                  : Colors
+                                                                        .blue
+                                                                        .shade800),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Attendance',
+                                                    style: GoogleFonts.poppins(
+                                                      fontSize: 12,
+                                                      color: labelColor,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 20),
+                                              // Custom Progress Bar
+                                              Stack(
+                                                children: [
+                                                  Container(
+                                                    height: 10,
+                                                    width: double.infinity,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.grey
+                                                          .withOpacity(0.2),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            5,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  FractionallySizedBox(
+                                                    widthFactor:
+                                                        (percentage / 100)
+                                                            .clamp(0.0, 1.0),
+                                                    child: Container(
+                                                      height: 10,
+                                                      decoration: BoxDecoration(
+                                                        color: statusColor,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              5,
+                                                            ),
+                                                        boxShadow:
+                                                            progressShadows,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 16),
+                                              // Row 3: Attended and Total
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  Text(
+                                                    'Attended: $attended',
+                                                    style: GoogleFonts.poppins(
+                                                      fontSize: 14,
+                                                      color: labelColor,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Total: $total',
+                                                    style: GoogleFonts.poppins(
+                                                      fontSize: 14,
+                                                      color: labelColor,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          ),
-                        );
-                      },
                     ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  // ignore: unused_element
-  String _calculateSafeBunk(int attended, int total) {
-    if (total == 0) return 'N/A';
-    final percentage = (attended / total) * 100;
-    if (percentage >= 75) {
-      int bunks = ((4 * attended - 3 * total) / 3).floor();
-      return 'Can bunk $bunks';
-    } else {
-      int classes = (3 * total - 4 * attended).ceil();
-      return 'Attend $classes';
-    }
   }
 }

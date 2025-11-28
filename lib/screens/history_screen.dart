@@ -210,6 +210,58 @@ class _HistoryScreenState extends State<HistoryScreen> {
     ).then((_) => _loadDates());
   }
 
+  Future<void> _confirmDelete(String date) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Delete Records?',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to delete all attendance records for ${DateFormat('MMMM d, yyyy').format(DateTime.parse(date))}? This action cannot be undone.',
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.poppins(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      try {
+        await FirestoreService.instance.deleteRecordsForDate(date);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Records deleted successfully')),
+          );
+          _loadDates(); // Refresh list
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error deleting records: $e')));
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -503,11 +555,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                               color:
                                                   colorScheme.onSurfaceVariant,
                                             ),
-                                            maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                       ],
                                     ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: Colors.redAccent,
+                                    ),
+                                    onPressed: () => _confirmDelete(date),
                                   ),
                                   IconButton(
                                     icon: const Icon(
