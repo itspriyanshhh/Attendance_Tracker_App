@@ -1,6 +1,8 @@
+import 'package:attendance_management/screens/intro_screen.dart';
 import 'package:attendance_management/screens/login_screen.dart';
 import 'package:attendance_management/services/version_check_service.dart';
 import 'package:attendance_management/ui/force_update_dialog.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -106,12 +108,17 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           );
         } else {
-          // Proceed to login screen
+          // Check auth state
+          final user = FirebaseAuth.instance.currentUser;
+          final Widget nextScreen = user == null
+              ? const IntroScreen()
+              : const LoginScreen();
+
           Navigator.pushReplacement(
             context,
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) =>
-                  const LoginScreen(),
+                  nextScreen,
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) {
                     return FadeTransition(opacity: animation, child: child);
