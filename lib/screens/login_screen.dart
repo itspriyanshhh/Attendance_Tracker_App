@@ -1,3 +1,4 @@
+import 'package:attendance_management/services/subscription_service.dart';
 import 'package:attendance_management/ui/main_nav.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,14 @@ class LoginScreen extends StatelessWidget {
       );
 
       await FirebaseAuth.instance.signInWithCredential(credential);
+
+      // Initialize subscription for new users
+      try {
+        await SubscriptionService.instance.initializeNewUserSubscription();
+      } catch (e) {
+        print('Error initializing subscription: $e');
+        // Don't block login if subscription init fails
+      }
     } catch (e) {
       String errorMessage = 'Sign-in failed: $e';
       if (e is FirebaseAuthException) {

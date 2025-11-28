@@ -1,5 +1,7 @@
 import 'package:attendance_management/models/subject.dart';
+import 'package:attendance_management/screens/paywall_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/subscription_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -26,7 +28,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _checkAccessAndLoad();
+  }
+
+  Future<void> _checkAccessAndLoad() async {
+    // Check if user has access to analytics
+    final hasAccess = await SubscriptionService.instance.hasFeatureAccess(
+      'analytics',
+    );
+
+    if (!hasAccess && mounted) {
+      // Navigate to paywall
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PaywallScreen()),
+      );
+
+      // If user subscribed, reload
+      if (result == true) {
+        _loadData();
+      } else {
+        // Go back if user didn't subscribe
+        if (mounted) Navigator.pop(context);
+      }
+    } else {
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {

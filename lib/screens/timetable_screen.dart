@@ -1,6 +1,8 @@
 import 'package:attendance_management/models/subject.dart';
+import 'package:attendance_management/screens/paywall_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
+import 'package:attendance_management/services/subscription_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -21,7 +23,36 @@ class _TimetableScreenState extends State<TimetableScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSubjects();
+    _checkAccessAndLoad();
+  }
+
+  Future<void> _checkAccessAndLoad() async {
+    // Check if user has access to timetable
+    final hasAccess = await SubscriptionService.instance.hasFeatureAccess(
+      'timetable',
+    );
+
+    if (!hasAccess && mounted) {
+      // Set loading to false before showing paywall
+      setState(() => _isLoading = false);
+
+      // Navigate to paywall
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PaywallScreen()),
+      );
+
+      // If user subscribed, reload
+      if (result == true && mounted) {
+        setState(() => _isLoading = true);
+        _loadSubjects();
+      } else {
+        // Go back if user didn't subscribe
+        if (mounted) Navigator.pop(context);
+      }
+    } else {
+      _loadSubjects();
+    }
   }
 
   Future<void> _loadSubjects() async {

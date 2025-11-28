@@ -1,6 +1,8 @@
 import 'package:attendance_management/models/subject.dart';
+import 'package:attendance_management/screens/paywall_screen.dart';
 import 'package:attendance_management/screens/safe_bunk_sheet.dart';
 import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/subscription_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -466,7 +468,24 @@ class AttendanceHomeState extends State<AttendanceHome>
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () {
+                          onPressed: () async {
+                            // Check if user has access to bunk calculator
+                            final hasAccess = await SubscriptionService.instance
+                                .hasFeatureAccess('bunk_calculator');
+
+                            if (!hasAccess && mounted) {
+                              // Navigate to paywall
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PaywallScreen(),
+                                ),
+                              );
+
+                              // If subscribed, show calculator
+                              if (result != true) return;
+                            }
+
                             // Calculate current totals
                             final Map<String, int> pointsPerSubject = {
                               for (var s in _subjects) s.id!: (s.isLab ? 2 : 1),
