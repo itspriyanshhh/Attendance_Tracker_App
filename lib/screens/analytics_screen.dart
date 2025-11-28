@@ -17,6 +17,7 @@ class AnalyticsScreen extends StatefulWidget {
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   bool _isLoading = true;
+  bool _isLocked = false;
   List<Subject> _subjects = [];
   List<AttendanceRecord> _records = [];
 
@@ -48,8 +49,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       if (result == true) {
         _loadData();
       } else {
-        // Go back if user didn't subscribe
-        if (mounted) Navigator.pop(context);
+        // User didn't subscribe, keep locked state
+        if (mounted) setState(() => _isLocked = true);
       }
     } else {
       _loadData();
@@ -145,6 +146,56 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLocked) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Analytics',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          ),
+          elevation: 0,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_outline_rounded, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(
+                'Premium Feature',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Upgrade to access analytics',
+                style: GoogleFonts.poppins(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PaywallScreen()),
+                  );
+                  if (result == true && mounted) {
+                    setState(() {
+                      _isLocked = false;
+                      _isLoading = true;
+                    });
+                    _loadData();
+                  }
+                },
+                child: Text('Unlock Now', style: GoogleFonts.poppins()),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     // ignore: unused_local_variable

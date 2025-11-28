@@ -707,12 +707,18 @@ class AttendanceHomeState extends State<AttendanceHome>
                                             ),
                                             decoration: BoxDecoration(
                                               color: subject.isLab
-                                                  ? Colors.orange.withOpacity(
-                                                      0.2,
-                                                    )
-                                                  : Colors.blue.withOpacity(
-                                                      0.2,
-                                                    ),
+                                                  ? (isDark
+                                                        ? Colors.orange.shade300
+                                                              .withOpacity(0.2)
+                                                        : Colors.orange
+                                                              .withOpacity(0.2))
+                                                  : (isDark
+                                                        ? Colors.blue.shade300
+                                                              .withOpacity(0.2)
+                                                        : Colors.blue
+                                                              .withOpacity(
+                                                                0.2,
+                                                              )),
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                             ),
@@ -722,8 +728,18 @@ class AttendanceHomeState extends State<AttendanceHome>
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w500,
                                                 color: subject.isLab
-                                                    ? Colors.orange.shade800
-                                                    : Colors.blue.shade800,
+                                                    ? (isDark
+                                                          ? Colors
+                                                                .orange
+                                                                .shade300
+                                                          : Colors
+                                                                .orange
+                                                                .shade800)
+                                                    : (isDark
+                                                          ? Colors.blue.shade300
+                                                          : Colors
+                                                                .blue
+                                                                .shade800),
                                               ),
                                             ),
                                           ),
