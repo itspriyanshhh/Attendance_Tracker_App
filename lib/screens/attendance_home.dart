@@ -6,6 +6,7 @@ import 'package:attendance_management/services/home_widget_service.dart';
 import 'package:attendance_management/services/subscription_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:attendance_management/screens/gpa_calculator_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart' show isDarkMode;
 
@@ -469,71 +470,121 @@ class AttendanceHomeState extends State<AttendanceHome>
                         },
                       ),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            // Check if user has access to bunk calculator
-                            final hasAccess = await SubscriptionService.instance
-                                .hasFeatureAccess('bunk_calculator');
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                // Check if user has access to bunk calculator
+                                final hasAccess = await SubscriptionService
+                                    .instance
+                                    .hasFeatureAccess('bunk_calculator');
 
-                            if (!hasAccess && mounted) {
-                              // Navigate to paywall
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const PaywallScreen(),
-                                ),
-                              );
+                                if (!hasAccess && mounted) {
+                                  // Navigate to paywall
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PaywallScreen(),
+                                    ),
+                                  );
 
-                              // If subscribed, show calculator
-                              if (result != true) return;
-                            }
+                                  // If subscribed, show calculator
+                                  if (result != true) return;
+                                }
 
-                            // Calculate current totals
-                            final Map<String, int> pointsPerSubject = {
-                              for (var s in _subjects) s.id!: (s.isLab ? 2 : 1),
-                            };
-                            int totalPoints = 0;
-                            int attendedPoints = 0;
-                            for (var record in _records) {
-                              final ptsPerSession =
-                                  pointsPerSubject[record.subjectId] ?? 1;
-                              totalPoints += record.held * ptsPerSession;
-                              attendedPoints += record.attended * ptsPerSession;
-                            }
+                                // Calculate current totals
+                                final Map<String, int> pointsPerSubject = {
+                                  for (var s in _subjects)
+                                    s.id!: (s.isLab ? 2 : 1),
+                                };
+                                int totalPoints = 0;
+                                int attendedPoints = 0;
+                                for (var record in _records) {
+                                  final ptsPerSession =
+                                      pointsPerSubject[record.subjectId] ?? 1;
+                                  totalPoints += record.held * ptsPerSession;
+                                  attendedPoints +=
+                                      record.attended * ptsPerSession;
+                                }
 
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => SafeBunkSheet(
-                                totalPointsHeld: totalPoints,
-                                totalPointsAttended: attendedPoints,
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => SafeBunkSheet(
+                                    totalPointsHeld: totalPoints,
+                                    totalPointsAttended: attendedPoints,
+                                  ),
+                                );
+                              },
+                              icon: Icon(
+                                Icons.calculate_outlined,
+                                color: colorScheme.primary,
+                                size: 20,
                               ),
-                            );
-                          },
-                          icon: Icon(
-                            Icons.calculate_outlined,
-                            color: colorScheme.primary,
-                          ),
-                          label: Text(
-                            'Safe Bunk Calculator',
-                            style: GoogleFonts.poppins(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w600,
+                              label: Text(
+                                'Safe Bunk',
+                                style: GoogleFonts.poppins(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colorScheme.onPrimary,
+                                foregroundColor: colorScheme.primary,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
                             ),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colorScheme.onPrimary,
-                            foregroundColor: colorScheme.primary,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const GPACalculatorScreen(),
+                                  ),
+                                );
+                              },
+                              icon: Icon(
+                                Icons.school_outlined,
+                                color: colorScheme.primary,
+                                size: 20,
+                              ),
+                              label: Text(
+                                'GPA Calc',
+                                style: GoogleFonts.poppins(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colorScheme.onPrimary,
+                                foregroundColor: colorScheme.primary,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
