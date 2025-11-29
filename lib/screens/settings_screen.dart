@@ -32,6 +32,58 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isProcessing = false;
+  bool _remindersEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRemindersPref();
+  }
+
+  Future<void> _loadRemindersPref() async {
+    final enabled = await NotificationService.instance.areRemindersEnabled();
+    if (mounted) setState(() => _remindersEnabled = enabled);
+  }
+
+  Future<void> _toggleReminders(bool value) async {
+    setState(() {
+      _remindersEnabled = value;
+      _isProcessing = true;
+    });
+
+    try {
+      await NotificationService.instance.setRemindersEnabled(value);
+
+      if (value) {
+        // Fetch subjects and schedule
+        final subjects = await FirestoreService.instance.getAllSubjects();
+        await NotificationService.instance.scheduleClassReminders(subjects);
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Reminders enabled')));
+        }
+      } else {
+        // Cancel all
+        await NotificationService.instance.cancelAll();
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Reminders disabled')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update reminders: $e')),
+        );
+        // Revert UI on error
+        setState(() => _remindersEnabled = !value);
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
 
   Future<void> _confirmAndDeleteAllSubjects() async {
     final bool? confirm = await showDialog<bool>(
@@ -322,18 +374,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               context,
               icon: Icons.notifications_active_rounded,
               title: 'Attendance Reminders',
-              subtitle: 'Get notified when attendance is low',
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Notification settings coming soon',
-                      style: GoogleFonts.poppins(),
-                    ),
-                  ),
-                );
-              },
+              subtitle: 'Daily reminders after classes',
+              trailing: Switch(
+                value: _remindersEnabled,
+                onChanged: _isProcessing ? null : _toggleReminders,
+                activeColor: Theme.of(context).colorScheme.primary,
+              ),
             ),
 
             _buildSectionHeader('DATA MANAGEMENT', context),

@@ -7,12 +7,16 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
   final FlutterLocalNotificationsPlugin _fln =
       FlutterLocalNotificationsPlugin();
+
+  static const String _prefKey = 'class_reminders_enabled';
 
   Future<void> init() async {
     const AndroidInitializationSettings androidInit =
@@ -26,6 +30,16 @@ class NotificationService {
 
     // Request FCM / platform permissions for iOS
     await FirebaseMessaging.instance.requestPermission();
+  }
+
+  Future<bool> areRemindersEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_prefKey) ?? true; // Default to enabled
+  }
+
+  Future<void> setRemindersEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefKey, enabled);
   }
 
   Future<void> show({
@@ -64,6 +78,12 @@ class NotificationService {
 
   /// Schedules daily reminders - one per day, 2 hours after the last class
   Future<void> scheduleClassReminders(List<Subject> subjects) async {
+    // Check preference first
+    if (!await areRemindersEnabled()) {
+      await cancelAll();
+      return;
+    }
+
     // First, clear existing to avoid duplicates/stale schedules
     await cancelAll();
 
