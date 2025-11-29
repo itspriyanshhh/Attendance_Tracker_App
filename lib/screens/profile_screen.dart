@@ -196,7 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         cardColor = Colors.blue.shade50;
         textColor = Colors.blue.shade900;
         planIcon = Icons.timer_outlined;
-        expiryText = '${_subscription!.daysRemainingInTrial} days remaining';
+        // expiryText = '${_subscription!.daysRemainingInTrial} days remaining';
       }
     }
 

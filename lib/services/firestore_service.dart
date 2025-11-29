@@ -194,4 +194,21 @@ class FirestoreService {
       await updateSubject(subject);
     }
   }
+
+  Future<void> deleteUserData() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    // 1. Delete all subjects (and their attendance records)
+    await deleteAllSubjects();
+
+    // 2. Delete all planner items
+    final plannerSnapshot = await _plannerCollection().get();
+    for (final doc in plannerSnapshot.docs) {
+      await doc.reference.delete();
+    }
+
+    // 3. Delete user document (subscription info, etc.)
+    await _firestore.collection('users').doc(userId).delete();
+  }
 }

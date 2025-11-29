@@ -254,6 +254,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _confirmAndDeleteAccount() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Delete Account',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            color: Colors.red,
+          ),
+        ),
+        content: Text(
+          'WARNING: This action is irreversible.\n\nIt will permanently delete:\n• All subjects and attendance records\n• All planner items\n• Your subscription details\n• Your account login\n\nAre you sure you want to proceed?',
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Delete Forever', style: GoogleFonts.poppins()),
+          ),
+        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      // 1. Delete data from Firestore
+      await FirestoreService.instance.deleteUserData();
+
+      // 2. Delete Auth Account
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.delete();
+      }
+
+      // 3. Navigate to Login
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Account deleted')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to delete account. Please sign in again and try.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
   Widget _buildSectionHeader(String title, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
@@ -330,170 +401,187 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 24),
+        child: Stack(
           children: [
-            _buildSectionHeader('ACCOUNT', context),
-            _buildSettingTile(
-              context,
-              icon: Icons.person_rounded,
-              title: 'My Profile',
-              subtitle: 'View account details',
-              onTap: () {
-                Navigator.push(
+            ListView(
+              padding: const EdgeInsets.only(bottom: 24),
+              children: [
+                _buildSectionHeader('ACCOUNT', context),
+                _buildSettingTile(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
-                  ),
-                );
-              },
-            ),
-
-            _buildSectionHeader('APPEARANCE', context),
-            _buildSettingTile(
-              context,
-              icon: isDarkMode.value
-                  ? Icons.dark_mode_rounded
-                  : Icons.light_mode_rounded,
-              title: 'Dark Mode',
-              subtitle: 'Toggle application theme',
-              trailing: Switch(
-                value: isDarkMode.value,
-                onChanged: (v) async {
-                  isDarkMode.value = v;
-                  try {
-                    await _saveDarkMode(v);
-                  } catch (_) {}
-                  if (mounted) setState(() {});
-                },
-              ),
-            ),
-
-            _buildSectionHeader('NOTIFICATIONS', context),
-            _buildSettingTile(
-              context,
-              icon: Icons.notifications_active_rounded,
-              title: 'Attendance Reminders',
-              subtitle: 'Daily reminders after classes',
-              trailing: Switch(
-                value: _remindersEnabled,
-                onChanged: _isProcessing ? null : _toggleReminders,
-                activeColor: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-
-            _buildSectionHeader('DATA MANAGEMENT', context),
-            _buildSettingTile(
-              context,
-              icon: Icons.history_rounded,
-              title: 'View History',
-              subtitle: 'Check past attendance records',
-              iconColor: Colors.purple,
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const HistoryScreen(),
-                  ),
-                );
-              },
-            ),
-            _buildSettingTile(
-              context,
-              icon: Icons.delete_forever_rounded,
-              title: 'Delete All Subjects',
-              subtitle: 'Remove all subjects and records',
-              iconColor: Colors.red,
-              onTap: _isProcessing ? null : _confirmAndDeleteAllSubjects,
-            ),
-            _buildSettingTile(
-              context,
-              icon: Icons.history_toggle_off_rounded,
-              title: 'Delete History',
-              subtitle: 'Clear all attendance history',
-              iconColor: Colors.red,
-              onTap: _isProcessing ? null : _confirmAndDeleteAllHistory,
-            ),
-
-            _buildSectionHeader('OFFICIAL REPORTS', context),
-            _buildSettingTile(
-              context,
-              icon: Icons.picture_as_pdf_rounded,
-              title: 'Export Attendance Report',
-              subtitle: 'Generate PDF report of your attendance',
-              iconColor: Colors.blue,
-              onTap: _isProcessing ? null : _generateReport,
-            ),
-
-            _buildSectionHeader('ABOUT & LEGAL', context),
-            _buildSettingTile(
-              context,
-              icon: Icons.privacy_tip_rounded,
-              title: 'Privacy Policy',
-              subtitle: 'How we handle your data',
-              iconColor: Colors.green,
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PrivacyPolicyScreen(),
-                  ),
-                );
-              },
-            ),
-            _buildSettingTile(
-              context,
-              icon: Icons.info_rounded,
-              title: 'About Attendify',
-              subtitle: 'App information and credits',
-              iconColor: Colors.blue,
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                showAboutDialog(
-                  context: context,
-                  applicationName: 'Attendify',
-                  applicationVersion: '1.0.0 (1)',
-                  applicationLegalese:
-                      '© 2024 Priyansh Garg\n\nDesigned for college students to track and manage their attendance effortlessly.',
-                  applicationIcon: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.calendar_today_rounded,
-                      size: 32,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            _buildSectionHeader('SESSION', context),
-            _buildSettingTile(
-              context,
-              icon: Icons.logout_rounded,
-              title: 'Sign Out',
-              subtitle: 'Log out of your account',
-              onTap: _isProcessing ? null : _signOut,
-            ),
-
-            const SizedBox(height: 32),
-            Center(
-              child: Text(
-                'App Version 1.0.0',
-                style: GoogleFonts.poppins(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontSize: 12,
+                  icon: Icons.person_rounded,
+                  title: 'My Profile',
+                  subtitle: 'View account details',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfileScreen(),
+                      ),
+                    );
+                  },
                 ),
-              ),
+
+                _buildSectionHeader('APPEARANCE', context),
+                _buildSettingTile(
+                  context,
+                  icon: isDarkMode.value
+                      ? Icons.dark_mode_rounded
+                      : Icons.light_mode_rounded,
+                  title: 'Dark Mode',
+                  subtitle: 'Toggle application theme',
+                  trailing: Switch(
+                    value: isDarkMode.value,
+                    onChanged: (v) async {
+                      isDarkMode.value = v;
+                      try {
+                        await _saveDarkMode(v);
+                      } catch (_) {}
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                ),
+
+                _buildSectionHeader('NOTIFICATIONS', context),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.notifications_active_rounded,
+                  title: 'Attendance Reminders',
+                  subtitle: 'Daily reminders after classes',
+                  trailing: Switch(
+                    value: _remindersEnabled,
+                    onChanged: _isProcessing ? null : _toggleReminders,
+                    activeColor: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+
+                _buildSectionHeader('DATA MANAGEMENT', context),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.history_rounded,
+                  title: 'View History',
+                  subtitle: 'Check past attendance records',
+                  iconColor: Colors.purple,
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HistoryScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.delete_forever_rounded,
+                  title: 'Delete All Subjects',
+                  subtitle: 'Remove all subjects and records',
+                  iconColor: Colors.red,
+                  onTap: _isProcessing ? null : _confirmAndDeleteAllSubjects,
+                ),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.history_toggle_off_rounded,
+                  title: 'Delete History',
+                  subtitle: 'Clear all attendance history',
+                  iconColor: Colors.red,
+                  onTap: _isProcessing ? null : _confirmAndDeleteAllHistory,
+                ),
+
+                _buildSectionHeader('OFFICIAL REPORTS', context),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.picture_as_pdf_rounded,
+                  title: 'Export Attendance Report',
+                  subtitle: 'Generate PDF report of your attendance',
+                  iconColor: Colors.blue,
+                  onTap: _isProcessing ? null : _generateReport,
+                ),
+
+                _buildSectionHeader('ABOUT & LEGAL', context),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.privacy_tip_rounded,
+                  title: 'Privacy Policy',
+                  subtitle: 'How we handle your data',
+                  iconColor: Colors.green,
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PrivacyPolicyScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.info_rounded,
+                  title: 'About Attendify',
+                  subtitle: 'App information and credits',
+                  iconColor: Colors.blue,
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'Attendify',
+                      applicationVersion: '1.0.0 (1)',
+                      applicationLegalese:
+                          '© 2024 Priyansh Garg\n\nDesigned for college students to track and manage their attendance effortlessly.',
+                      applicationIcon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.calendar_today_rounded,
+                          size: 32,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _buildSectionHeader('SESSION', context),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.logout_rounded,
+                  title: 'Sign Out',
+                  subtitle: 'Log out of your account',
+                  onTap: _isProcessing ? null : _signOut,
+                ),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.delete_forever,
+                  title: 'Delete Account',
+                  subtitle: 'Permanently delete your account and data',
+                  iconColor: Colors.red,
+                  onTap: _isProcessing ? null : _confirmAndDeleteAccount,
+                ),
+
+                const SizedBox(height: 32),
+                Center(
+                  child: Text(
+                    'App Version 1.0.0',
+                    style: GoogleFonts.poppins(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
             ),
+            if (_isProcessing)
+              Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
           ],
         ),
       ),
