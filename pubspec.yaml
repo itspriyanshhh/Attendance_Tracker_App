@@ -52,6 +52,7 @@ dependencies:
   timezone: ^0.10.1
   razorpay_flutter: ^1.4.0
   crypto: ^3.0.7
+  home_widget: ^0.7.0
 
 dev_dependencies:
   flutter_test:

@@ -2,6 +2,7 @@ import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/screens/paywall_screen.dart';
 import 'package:attendance_management/screens/safe_bunk_sheet.dart';
 import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/home_widget_service.dart';
 import 'package:attendance_management/services/subscription_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -121,6 +122,9 @@ class AttendanceHomeState extends State<AttendanceHome>
     _totalAttendance = totalPoints > 0
         ? (attendedPoints / totalPoints) * 100
         : 0.0;
+
+    // Update home widget
+    HomeWidgetService.updateWidget(_totalAttendance);
   }
 
   Future<void> _addSubject(BuildContext context) async {
