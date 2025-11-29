@@ -253,7 +253,9 @@ class _PlannerScreenState extends State<PlannerScreen>
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          bottom:
+              MediaQuery.of(ctx).viewInsets.bottom +
+              MediaQuery.of(ctx).padding.bottom,
           left: 24,
           right: 24,
           top: 24,
