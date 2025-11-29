@@ -294,6 +294,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       Icons.calendar_month,
                       'Class Timetable Management',
                     ),
+                    _buildFeatureItem(Icons.school, 'GPA & CGPA Calculator'),
+                    _buildFeatureItem(
+                      Icons.edit_calendar,
+                      'Assignment & Exam Planner',
+                    ),
                     _buildFeatureItem(
                       Icons.cloud_sync,
                       'Cloud Sync Across Devices',

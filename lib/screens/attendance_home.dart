@@ -548,14 +548,34 @@ class AttendanceHomeState extends State<AttendanceHome>
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const GPACalculatorScreen(),
-                                  ),
-                                );
+                              onPressed: () async {
+                                // Check if user has access to GPA calculator
+                                final hasAccess = await SubscriptionService
+                                    .instance
+                                    .hasFeatureAccess('gpa_calculator');
+
+                                if (!hasAccess && mounted) {
+                                  // Navigate to paywall
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PaywallScreen(),
+                                    ),
+                                  );
+
+                                  // If subscribed, show calculator
+                                  if (result != true) return;
+                                }
+
+                                if (mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const GPACalculatorScreen(),
+                                    ),
+                                  );
+                                }
                               },
                               icon: Icon(
                                 Icons.school_outlined,

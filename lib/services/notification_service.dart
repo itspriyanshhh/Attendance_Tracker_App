@@ -203,8 +203,8 @@ class AttendanceMonitor {
   static const Duration _pollInterval = Duration(minutes: 60);
 
   Timer? _timer;
-  final Set<String> _notifiedSubjects =
-      {}; // subjectId or 'TOTAL' to avoid duplicate notifications
+  // Key for storing last notification timestamp
+  static const String _lastNotificationKey = 'last_low_attendance_notification';
 
   Future<void> start() async {
     // ensure notification service ready
@@ -249,17 +249,21 @@ class AttendanceMonitor {
           : 100.0;
 
       if (totalPerc < threshold) {
-        if (!_notifiedSubjects.contains('TOTAL')) {
+        final prefs = await SharedPreferences.getInstance();
+        final lastTime = prefs.getInt(_lastNotificationKey) ?? 0;
+        final now = DateTime.now().millisecondsSinceEpoch;
+
+        // Check if 24 hours (86400000 ms) have passed
+        if (now - lastTime > 86400000) {
           await NotificationService.instance.show(
             id: 'TOTAL'.hashCode,
             title: 'Low total attendance',
             body:
                 '${totalPerc.toStringAsFixed(1)}% (below ${threshold.toStringAsFixed(0)}%)',
           );
-          _notifiedSubjects.add('TOTAL');
+          // Update last notification time
+          await prefs.setInt(_lastNotificationKey, now);
         }
-      } else {
-        _notifiedSubjects.remove('TOTAL');
       }
     } catch (e) {
       print('AttendanceMonitor.checkAll error: $e');
