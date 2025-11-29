@@ -1,3 +1,4 @@
+import 'package:attendance_management/models/planner_item.dart';
 import 'package:attendance_management/models/subject.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -147,6 +148,40 @@ class FirestoreService {
 
   Future<void> deleteRecord(String id) async {
     await _recordsCollection().doc(id).delete();
+  }
+
+  CollectionReference _plannerCollection() {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) throw Exception('User not authenticated');
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('planner_items');
+  }
+
+  Future<List<PlannerItem>> getPlannerItems() async {
+    QuerySnapshot snapshot = await _plannerCollection().get();
+    return snapshot.docs
+        .map(
+          (doc) => PlannerItem.fromMap(
+            doc.data() as Map<String, dynamic>..['id'] = doc.id,
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> addPlannerItem(PlannerItem item) async {
+    await _plannerCollection().add(item.toMap());
+  }
+
+  Future<void> updatePlannerItem(PlannerItem item) async {
+    if (item.id != null) {
+      await _plannerCollection().doc(item.id).update(item.toMap());
+    }
+  }
+
+  Future<void> deletePlannerItem(String id) async {
+    await _plannerCollection().doc(id).delete();
   }
 
   Future<void> clearAllTimetables() async {

@@ -6,6 +6,8 @@ import 'package:attendance_management/screens/timetable_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:attendance_management/screens/planner_screen.dart';
+
 class MainNav extends StatefulWidget {
   const MainNav({super.key});
 
@@ -15,9 +17,6 @@ class MainNav extends StatefulWidget {
 
 class _MainNavState extends State<MainNav> {
   int _currentIndex = 0;
-  // Add this near the top of _MainNavState
-  final GlobalKey<AttendanceHomeState> _attendanceHomeKey =
-      GlobalKey<AttendanceHomeState>();
 
   // Pages for each nav item
   late final List<Widget> _pages;
@@ -26,7 +25,8 @@ class _MainNavState extends State<MainNav> {
   void initState() {
     super.initState();
     _pages = [
-      AttendanceHome(key: _attendanceHomeKey), // Home
+      const AttendanceHome(), // Home
+      const PlannerScreen(), // Planner
       const AnalyticsScreen(), // Analytics
       const BatchMarkScreen(), // Mark
       const TimetableScreen(), // Timetable
@@ -93,26 +93,33 @@ class _MainNavState extends State<MainNav> {
                   _NavItem(
                     index: 1,
                     currentIndex: _currentIndex,
+                    icon: Icons.calendar_today_rounded,
+                    label: 'Planner',
+                    onTap: _onTap,
+                  ),
+                  _NavItem(
+                    index: 2,
+                    currentIndex: _currentIndex,
                     icon: Icons.bar_chart_rounded,
                     label: 'Analytics',
                     onTap: _onTap,
                   ),
                   _NavItem(
-                    index: 2,
+                    index: 3,
                     currentIndex: _currentIndex,
                     icon: Icons.add_box_rounded,
                     label: 'Mark',
                     onTap: _onTap,
                   ),
                   _NavItem(
-                    index: 3,
+                    index: 4,
                     currentIndex: _currentIndex,
                     icon: Icons.calendar_month_rounded,
                     label: 'Timetable',
                     onTap: _onTap,
                   ),
                   _NavItem(
-                    index: 4,
+                    index: 5,
                     currentIndex: _currentIndex,
                     icon: Icons.settings_rounded,
                     label: 'Settings',
@@ -155,11 +162,13 @@ class _NavItem extends StatelessWidget {
         ? Theme.of(context).textTheme.bodySmall!.copyWith(
             color: primary,
             fontWeight: FontWeight.w600,
+            fontSize: 10,
           )
         : Theme.of(context).textTheme.bodySmall!.copyWith(
             color: Theme.of(
               context,
             ).textTheme.bodySmall!.color!.withOpacity(0.7),
+            fontSize: 10,
           );
 
     return Expanded(
@@ -167,7 +176,7 @@ class _NavItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: () => onTap(index),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -179,10 +188,16 @@ class _NavItem extends StatelessWidget {
                       )
                     : null,
                 padding: const EdgeInsets.all(6),
-                child: Icon(icon, size: 22, color: iconColor),
+                child: Icon(icon, size: 20, color: iconColor),
               ),
-              const SizedBox(height: 6),
-              Text(label, style: labelStyle),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: labelStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
