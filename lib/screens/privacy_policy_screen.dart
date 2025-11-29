@@ -120,8 +120,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 context,
                 'Contact Us',
                 'If you have any questions about this Privacy Policy or our data practices, please contact us at:\n\n'
-                    'Email: [Your email address]\n'
-                    'GitHub: @itspriyanshhh',
+                    'Email: businessmystery07@gmail.com',
               ),
 
               const SizedBox(height: 32),

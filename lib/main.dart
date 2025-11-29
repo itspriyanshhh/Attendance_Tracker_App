@@ -3,6 +3,7 @@ import 'package:attendance_management/screens/splash_screen.dart';
 import 'package:attendance_management/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -31,6 +32,10 @@ void main() async {
   await NotificationService.instance.init();
   await _loadDarkMode();
   AttendanceMonitor.instance.start();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   runApp(const MyApp());
 }
 

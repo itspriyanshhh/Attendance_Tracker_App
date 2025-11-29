@@ -7,8 +7,6 @@ import 'package:attendance_management/services/subscription_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:attendance_management/screens/gpa_calculator_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../main.dart' show isDarkMode;
 
 class AttendanceHome extends StatefulWidget {
   const AttendanceHome({super.key});
@@ -361,29 +359,6 @@ class AttendanceHomeState extends State<AttendanceHome>
         elevation: 0,
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
-          // Theme Toggle Switch
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ValueListenableBuilder<bool>(
-              valueListenable: isDarkMode,
-              builder: (context, isDark, _) {
-                return IconButton(
-                  icon: Icon(
-                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                    color: colorScheme.primary,
-                  ),
-                  tooltip: isDark
-                      ? 'Switch to Light Mode'
-                      : 'Switch to Dark Mode',
-                  onPressed: () async {
-                    isDarkMode.value = !isDarkMode.value;
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('darkMode', isDarkMode.value);
-                  },
-                );
-              },
-            ),
-          ),
           // Add Subject Button
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -818,29 +793,10 @@ class AttendanceHomeState extends State<AttendanceHome>
                                                           vertical: 4,
                                                         ),
                                                     decoration: BoxDecoration(
-                                                      color: subject.isLab
-                                                          ? (isDark
-                                                                ? Colors
-                                                                      .orange
-                                                                      .shade300
-                                                                      .withOpacity(
-                                                                        0.2,
-                                                                      )
-                                                                : Colors.orange
-                                                                      .withOpacity(
-                                                                        0.2,
-                                                                      ))
-                                                          : (isDark
-                                                                ? Colors
-                                                                      .blue
-                                                                      .shade300
-                                                                      .withOpacity(
-                                                                        0.2,
-                                                                      )
-                                                                : Colors.blue
-                                                                      .withOpacity(
-                                                                        0.2,
-                                                                      )),
+                                                      color: colorScheme.primary
+                                                          .withOpacity(
+                                                            isDark ? 0.2 : 0.1,
+                                                          ),
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                             8,
@@ -850,26 +806,14 @@ class AttendanceHomeState extends State<AttendanceHome>
                                                       subject.isLab
                                                           ? 'Lab'
                                                           : 'Lecture',
-                                                      style: GoogleFonts.poppins(
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                        color: subject.isLab
-                                                            ? (isDark
-                                                                  ? Colors
-                                                                        .orange
-                                                                        .shade300
-                                                                  : Colors
-                                                                        .orange
-                                                                        .shade800)
-                                                            : (isDark
-                                                                  ? Colors
-                                                                        .blue
-                                                                        .shade300
-                                                                  : Colors
-                                                                        .blue
-                                                                        .shade800),
-                                                      ),
+                                                      style:
+                                                          GoogleFonts.poppins(
+                                                            fontSize: 12,
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                            color: colorScheme
+                                                                .primary,
+                                                          ),
                                                     ),
                                                   ),
                                                   Text(

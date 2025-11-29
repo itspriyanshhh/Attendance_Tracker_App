@@ -270,22 +270,6 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                     ),
-
-                    // Author credit
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 20),
-                      child: FadeTransition(
-                        opacity: _taglineFadeAnimation,
-                        child: Text(
-                          'By Priyansh Garg',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: textColor.withOpacity(0.5),
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
