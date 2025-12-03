@@ -1,13 +1,11 @@
 import 'package:attendance_management/main.dart';
 import 'package:attendance_management/screens/history_screen.dart';
 import 'package:attendance_management/screens/login_screen.dart';
-import 'package:attendance_management/screens/paywall_screen.dart';
 import 'package:attendance_management/screens/privacy_policy_screen.dart';
 import 'package:attendance_management/screens/profile_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
 import 'package:attendance_management/services/pdf_service.dart';
-import 'package:attendance_management/services/subscription_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -189,25 +187,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _generateReport() async {
-    // Check if user has access to PDF export
-    final hasAccess = await SubscriptionService.instance.hasFeatureAccess(
-      'pdf_export',
-    );
-
-    if (!hasAccess && mounted) {
-      // Navigate to paywall
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const PaywallScreen()),
-      );
-
-      // If subscribed, try again
-      if (result == true && mounted) {
-        _generateReport();
-      }
-      return;
-    }
-
     setState(() => _isProcessing = true);
     try {
       await PdfService.generateAttendanceReport();

@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:attendance_management/screens/planner_screen.dart';
-import 'package:attendance_management/screens/paywall_screen.dart';
-import 'package:attendance_management/services/subscription_service.dart';
 
 class MainNav extends StatefulWidget {
   const MainNav({super.key});
@@ -37,24 +35,6 @@ class _MainNavState extends State<MainNav> {
   }
 
   void _onTap(int index) async {
-    // Gate Planner (index 1)
-    if (index == 1) {
-      final hasAccess = await SubscriptionService.instance.hasFeatureAccess(
-        'planner',
-      );
-      if (!hasAccess && mounted) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const PaywallScreen()),
-        );
-        // If they subscribed, they can now access it.
-        // Re-check or just let them tap again.
-        // For better UX, we could re-check and switch if true,
-        // but simple return is safer for now.
-        return;
-      }
-    }
-
     setState(() => _currentIndex = index);
   }
 

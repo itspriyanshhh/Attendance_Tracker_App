@@ -1,8 +1,7 @@
 import 'package:attendance_management/models/subject.dart';
-import 'package:attendance_management/screens/paywall_screen.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
-import 'package:attendance_management/services/subscription_service.dart';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -16,7 +15,6 @@ class TimetableScreen extends StatefulWidget {
 class _TimetableScreenState extends State<TimetableScreen> {
   List<Subject> _subjects = [];
   bool _isLoading = true;
-  bool _isLocked = false;
 
   // 1 = Mon, 7 = Sun
   final List<String> _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -24,36 +22,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
   @override
   void initState() {
     super.initState();
-    _checkAccessAndLoad();
-  }
-
-  Future<void> _checkAccessAndLoad() async {
-    // Check if user has access to timetable
-    final hasAccess = await SubscriptionService.instance.hasFeatureAccess(
-      'timetable',
-    );
-
-    if (!hasAccess && mounted) {
-      // Set loading to false before showing paywall
-      setState(() => _isLoading = false);
-
-      // Navigate to paywall
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const PaywallScreen()),
-      );
-
-      // If user subscribed, reload
-      if (result == true && mounted) {
-        setState(() => _isLoading = true);
-        _loadSubjects();
-      } else {
-        // User didn't subscribe, keep locked state
-        if (mounted) setState(() => _isLocked = true);
-      }
-    } else {
-      _loadSubjects();
-    }
+    _loadSubjects();
   }
 
   Future<void> _loadSubjects() async {
@@ -230,56 +199,6 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLocked) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(
-            'Timetable',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-          ),
-          elevation: 0,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.lock_outline_rounded, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text(
-                'Premium Feature',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Upgrade to access the timetable',
-                style: GoogleFonts.poppins(color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PaywallScreen()),
-                  );
-                  if (result == true && mounted) {
-                    setState(() {
-                      _isLocked = false;
-                      _isLoading = true;
-                    });
-                    _loadSubjects();
-                  }
-                },
-                child: Text('Unlock Now', style: GoogleFonts.poppins()),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
