@@ -120,13 +120,13 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 context,
                 'Contact Us',
                 'If you have any questions about this Privacy Policy or our data practices, please contact us at:\n\n'
-                    'Email: businessmystery07@gmail.com',
+                    'Email: priyanshg2108@gmail.com',
               ),
 
               const SizedBox(height: 32),
               Center(
                 child: Text(
-                  '© 2024 Attendify by Priyansh Garg',
+                  '© 2026 Attendify by Priyansh Garg',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     color: theme.colorScheme.onSurfaceVariant,

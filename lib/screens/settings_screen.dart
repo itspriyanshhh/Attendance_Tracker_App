@@ -426,7 +426,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   context,
                   icon: Icons.notifications_active_rounded,
                   title: 'Attendance Reminders',
-                  subtitle: 'Daily reminders after classes',
+                  subtitle:
+                      'Reminder before class & prompt to mark attendance after',
                   trailing: Switch(
                     value: _remindersEnabled,
                     onChanged: _isProcessing ? null : _toggleReminders,
@@ -508,7 +509,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       applicationName: 'Attendify',
                       applicationVersion: '1.0.0 (1)',
                       applicationLegalese:
-                          '© 2024 Priyansh Garg\n\nDesigned for college students to track and manage their attendance effortlessly.',
+                          '© 2026 Priyansh Garg\n\nDesigned for college students to track and manage their attendance effortlessly.',
                       applicationIcon: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(

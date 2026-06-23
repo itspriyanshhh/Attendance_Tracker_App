@@ -4,10 +4,32 @@ import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import 'package:shared_preferences/shared_preferences.dart';
+
+// ---------------------------------------------------------------------------
+// Notification channels
+// ---------------------------------------------------------------------------
+const _kPreClassChannelId = 'pre_class_reminders';
+const _kPreClassChannelName = 'Pre-Class Reminders';
+const _kPreClassChannelDesc = 'Alerts a few minutes before a class begins';
+
+const _kPostClassChannelId = 'attendance_reminders';
+const _kPostClassChannelName = 'Attendance Reminders';
+const _kPostClassChannelDesc =
+    'Prompts to mark attendance right after a class ends';
+
+const _kAttendanceChannelId = 'attendance_channel';
+const _kAttendanceChannelName = 'Attendance Alerts';
+const _kAttendanceChannelDesc = 'Alerts when attendance is below threshold';
+
+// How many minutes before the class the pre-class reminder fires
+const int _kPreClassOffsetMinutes = 10;
+
+// ---------------------------------------------------------------------------
 
 class NotificationService {
   NotificationService._();
@@ -21,7 +43,11 @@ class NotificationService {
   Future<void> init() async {
     const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    const DarwinInitializationSettings iosInit = DarwinInitializationSettings();
+    const DarwinInitializationSettings iosInit = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
     const InitializationSettings initSettings = InitializationSettings(
       android: androidInit,
       iOS: iosInit,
@@ -42,6 +68,7 @@ class NotificationService {
     await prefs.setBool(_prefKey, enabled);
   }
 
+  /// Shows an immediate notification (used for low-attendance alerts etc.)
   Future<void> show({
     required String title,
     required String body,
@@ -49,9 +76,9 @@ class NotificationService {
   }) async {
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
-          'attendance_channel',
-          'Attendance Alerts',
-          channelDescription: 'Alerts when attendance is below threshold',
+          _kAttendanceChannelId,
+          _kAttendanceChannelName,
+          channelDescription: _kAttendanceChannelDesc,
           importance: Importance.high,
           priority: Priority.high,
         );
@@ -76,74 +103,88 @@ class NotificationService {
     return await _fln.pendingNotificationRequests();
   }
 
-  /// Schedules daily reminders - one per day, 2 hours after the last class
+  // ---------------------------------------------------------------------------
+  // Per-class dual-reminder scheduling
+  // ---------------------------------------------------------------------------
+
+  /// Schedules two weekly repeating notifications for every [ScheduleSlot]
+  /// across all subjects:
+  ///   1. Pre-class  – fires [_kPreClassOffsetMinutes] min before class starts.
+  ///   2. Post-class – fires right after the class ends
+  ///                    (50 min for lectures, 100 min for labs).
   Future<void> scheduleClassReminders(List<Subject> subjects) async {
-    // Check preference first
+    // Respect user preference
     if (!await areRemindersEnabled()) {
       await cancelAll();
       return;
     }
 
-    // First, clear existing to avoid duplicates/stale schedules
+    // Clear existing to avoid stale / duplicate schedules
     await cancelAll();
 
-    // Group all slots by day of week
-    Map<int, List<ScheduleSlot>> slotsByDay = {};
+    for (final subject in subjects) {
+      for (final slot in subject.schedule) {
+        // Stable, unique base ID derived from subject + day
+        // Range: 0 – 999_999 (safe for notification IDs which are int)
+        final baseId =
+            (subject.id.hashCode.abs() % 5000) * 100 + (slot.dayOfWeek * 2);
 
-    for (var subject in subjects) {
-      for (var slot in subject.schedule) {
-        slotsByDay.putIfAbsent(slot.dayOfWeek, () => []);
-        slotsByDay[slot.dayOfWeek]!.add(slot);
-      }
-    }
+        final preClassId = baseId;      // even → pre-class
+        final postClassId = baseId + 1; // odd  → post-class
 
-    int notificationId = 1000;
-
-    // For each day that has classes, find the last class and schedule reminder 2 hours after
-    for (var dayOfWeek in slotsByDay.keys) {
-      final daySlots = slotsByDay[dayOfWeek]!;
-
-      // Find the slot with the latest start time
-      ScheduleSlot? lastSlot;
-      int latestMinutes = -1;
-
-      for (var slot in daySlots) {
-        final totalMinutes = slot.startTime.hour * 60 + slot.startTime.minute;
-        if (totalMinutes > latestMinutes) {
-          latestMinutes = totalMinutes;
-          lastSlot = slot;
-        }
-      }
-
-      if (lastSlot != null) {
-        // Schedule reminder 2 hours (120 minutes) after last class starts
-        // Assuming 1-hour class duration, this means 1 hour after class ends
+        // ---- 1. Pre-class reminder ----
         await _scheduleWeekly(
-          id: notificationId++,
-          title: 'Mark Your Attendance',
-          body: 'Don\'t forget to mark your attendance for today!',
-          dayOfWeek: dayOfWeek,
-          hour: lastSlot.startTime.hour,
-          minute: lastSlot.startTime.minute,
-          addMinutes: 120, // 2 hours after class starts
+          id: preClassId,
+          title: '📚 Class Starting Soon',
+          body:
+              '${subject.name} starts in $_kPreClassOffsetMinutes minutes. Get ready!',
+          dayOfWeek: slot.dayOfWeek,
+          hour: slot.startTime.hour,
+          minute: slot.startTime.minute,
+          addMinutes: -_kPreClassOffsetMinutes, // negative = before class
+          channelId: _kPreClassChannelId,
+          channelName: _kPreClassChannelName,
+          channelDesc: _kPreClassChannelDesc,
+        );
+
+        // ---- 2. Post-class mark-attendance reminder ----
+        final classDuration = subject.isLab ? 100 : 50; // minutes
+        await _scheduleWeekly(
+          id: postClassId,
+          title: '✅ Mark Your Attendance',
+          body:
+              '${subject.name} just ended — don\'t forget to mark your attendance!',
+          dayOfWeek: slot.dayOfWeek,
+          hour: slot.startTime.hour,
+          minute: slot.startTime.minute,
+          addMinutes: classDuration, // fires right after class ends
+          channelId: _kPostClassChannelId,
+          channelName: _kPostClassChannelName,
+          channelDesc: _kPostClassChannelDesc,
         );
       }
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Internal helper
+  // ---------------------------------------------------------------------------
+
   Future<void> _scheduleWeekly({
     required int id,
     required String title,
     required String body,
-    required int dayOfWeek, // 1=Mon, 7=Sun
+    required int dayOfWeek, // 1 = Mon … 7 = Sun (Dart weekday)
     required int hour,
     required int minute,
-    required int addMinutes,
+    required int addMinutes, // positive = after start, negative = before start
+    required String channelId,
+    required String channelName,
+    required String channelDesc,
   }) async {
     final now = tz.TZDateTime.now(tz.local);
 
-    // Calculate the next occurrence of this day/time
-    // 1. Create date for today with target time
+    // Build the target TZDateTime for today at (hour:minute + addMinutes)
     var scheduledDate = tz.TZDateTime(
       tz.local,
       now.year,
@@ -153,28 +194,26 @@ class NotificationService {
       minute,
     ).add(Duration(minutes: addMinutes));
 
-    // 2. Adjust to correct day of week
-    // dayOfWeek in Dart: 1=Mon...7=Sun
-    // scheduledDate.weekday: 1=Mon...7=Sun
+    // Advance to the correct weekday
     while (scheduledDate.weekday != dayOfWeek) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
-    // 3. If it's in the past, add 7 days
+    // If already past this week's occurrence, push to next week
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 7));
     }
 
-    const AndroidNotificationDetails androidDetails =
+    final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
-          'class_reminders',
-          'Class Reminders',
-          channelDescription: 'Reminders to mark attendance after class',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
+          channelId,
+          channelName,
+          channelDescription: channelDesc,
+          importance: Importance.high,
+          priority: Priority.high,
         );
 
-    const NotificationDetails platformDetails = NotificationDetails(
+    final NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
     );
 
@@ -184,13 +223,23 @@ class NotificationService {
       body,
       scheduledDate,
       platformDetails,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
 
-    print('Scheduled #$id: $title at $scheduledDate');
+    debugPrint(
+      'Scheduled #$id [$channelId]: "$title" at $scheduledDate '
+      '(${_weekdayName(dayOfWeek)} ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} ${addMinutes >= 0 ? '+' : ''}${addMinutes}min)',
+    );
   }
+
+  String _weekdayName(int d) =>
+      const ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d];
 }
+
+// ---------------------------------------------------------------------------
+// AttendanceMonitor — unchanged except for internal _checkAll formatting
+// ---------------------------------------------------------------------------
 
 class AttendanceMonitor {
   AttendanceMonitor._();
@@ -199,21 +248,15 @@ class AttendanceMonitor {
   // Threshold (75%)
   static const double threshold = 75.0;
 
-  // check every X minutes while app is running (adjust as desired)
+  // check every X minutes while app is running
   static const Duration _pollInterval = Duration(minutes: 60);
 
   Timer? _timer;
-  // Key for storing last notification timestamp
   static const String _lastNotificationKey = 'last_low_attendance_notification';
 
   Future<void> start() async {
-    // ensure notification service ready
     await NotificationService.instance.init();
-
-    // initial run
     await checkAll();
-
-    // periodic checks
     _timer?.cancel();
     _timer = Timer.periodic(_pollInterval, (_) => checkAll());
   }
@@ -223,14 +266,13 @@ class AttendanceMonitor {
     _timer = null;
   }
 
-  /// checks per-subject and total attendance, triggers notifications for drops below threshold
+  /// Checks per-subject and total attendance, triggers notifications for drops
+  /// below threshold.
   Future<void> checkAll() async {
     try {
-      // load subjects & records (assumes FirestoreService exists)
       final subjects = await FirestoreService.instance.getAllSubjects();
       final records = await FirestoreService.instance.getAllRecords();
 
-      // build map subjectId -> pointsPerSession (1 for lecture, 2 for lab)
       final Map<String, int> pointsPerSubject = {
         for (var s in subjects) s.id!: (s.isLab ? 2 : 1),
       };
@@ -244,16 +286,15 @@ class AttendanceMonitor {
         attendedPoints += r.attended * ptsPerSession;
       }
 
-      final totalPerc = totalPoints > 0
-          ? (attendedPoints / totalPoints) * 100.0
-          : 100.0;
+      final totalPerc =
+          totalPoints > 0 ? (attendedPoints / totalPoints) * 100.0 : 100.0;
 
       if (totalPerc < threshold) {
         final prefs = await SharedPreferences.getInstance();
         final lastTime = prefs.getInt(_lastNotificationKey) ?? 0;
         final now = DateTime.now().millisecondsSinceEpoch;
 
-        // Check if 24 hours (86400000 ms) have passed
+        // Throttle: at most once per 24 hours
         if (now - lastTime > 86400000) {
           await NotificationService.instance.show(
             id: 'TOTAL'.hashCode,
@@ -261,18 +302,16 @@ class AttendanceMonitor {
             body:
                 '${totalPerc.toStringAsFixed(1)}% (below ${threshold.toStringAsFixed(0)}%)',
           );
-          // Update last notification time
           await prefs.setInt(_lastNotificationKey, now);
         }
       }
     } catch (e) {
-      print('AttendanceMonitor.checkAll error: $e');
+      debugPrint('AttendanceMonitor.checkAll error: $e');
     }
   }
 
-  /// optional: call this after a specific subject changed so we check immediately for that subject
+  /// Optional: call this after a specific subject changed for an immediate check.
   Future<void> checkSubject(String subjectId) async {
-    // small optimization: just call checkAll for simplicity
     await checkAll();
   }
 }
