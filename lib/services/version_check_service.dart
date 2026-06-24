@@ -105,21 +105,20 @@ class VersionCheckService {
     }
   }
 
-  /// Open Play Store for app update
+  /// Open website for app update
   static Future<void> openPlayStore() async {
-    const String packageName = 'com.priyanshhh.attendify';
-    final Uri playStoreUri = Uri.parse(
-      'https://play.google.com/store/apps/details?id=$packageName',
+    final Uri updateUri = Uri.parse(
+      'https://itspriyanshhh.github.io/Attendance_Tracker_App/',
     );
 
     try {
-      if (await canLaunchUrl(playStoreUri)) {
-        await launchUrl(playStoreUri, mode: LaunchMode.externalApplication);
+      if (await canLaunchUrl(updateUri)) {
+        await launchUrl(updateUri, mode: LaunchMode.externalApplication);
       } else {
-        print('Could not launch Play Store');
+        print('Could not launch update URL');
       }
     } catch (e) {
-      print('Error opening Play Store: $e');
+      print('Error opening update URL: $e');
     }
   }
 }
