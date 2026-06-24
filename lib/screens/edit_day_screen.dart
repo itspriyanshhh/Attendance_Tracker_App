@@ -1,5 +1,5 @@
 import 'package:attendance_management/models/subject.dart';
-import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,8 +27,8 @@ class _EditDayScreenState extends State<EditDayScreen> {
   }
 
   Future<void> _loadData() async {
-    List<Subject> subjects = await FirestoreService.instance.getAllSubjects();
-    List<AttendanceRecord> records = await FirestoreService.instance
+    List<Subject> subjects = await LocalDbService.instance.getAllSubjects();
+    List<AttendanceRecord> records = await LocalDbService.instance
         .getRecordsForDate(widget.date);
     setState(() {
       _subjects = subjects;
@@ -61,7 +61,7 @@ class _EditDayScreenState extends State<EditDayScreen> {
       }
       record.held = newHeld;
       record.attended = newAttended;
-      await FirestoreService.instance.updateRecord(record);
+      await LocalDbService.instance.updateRecord(record);
     }
     if (!valid) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -171,7 +171,7 @@ class _EditDayScreenState extends State<EditDayScreen> {
                         held: held,
                         attended: attended,
                       );
-                      await FirestoreService.instance.insertRecord(newRecord);
+                      await LocalDbService.instance.insertRecord(newRecord);
                       AttendanceMonitor.instance.checkSubject(
                         newRecord.subjectId,
                       );
@@ -232,7 +232,7 @@ class _EditDayScreenState extends State<EditDayScreen> {
 
     if (confirm == true) {
       try {
-        await FirestoreService.instance.deleteRecord(record.id!);
+        await LocalDbService.instance.deleteRecord(record.id!);
         _loadData();
         ScaffoldMessenger.of(
           context,

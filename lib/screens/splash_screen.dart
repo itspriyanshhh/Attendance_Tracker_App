@@ -1,5 +1,6 @@
 import 'package:attendance_management/screens/intro_screen.dart';
 import 'package:attendance_management/screens/login_screen.dart';
+import 'package:attendance_management/services/sync_service.dart';
 import 'package:attendance_management/services/version_check_service.dart';
 import 'package:attendance_management/ui/force_update_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -110,25 +111,53 @@ class _SplashScreenState extends State<SplashScreen>
         } else {
           // Check auth state
           final user = FirebaseAuth.instance.currentUser;
-          final Widget nextScreen = user == null
-              ? const IntroScreen()
-              : const LoginScreen();
+          if (user == null) {
+            _navigate(const IntroScreen());
+            return;
+          }
 
-          Navigator.pushReplacement(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  nextScreen,
-              transitionsBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(opacity: animation, child: child);
-                  },
-              transitionDuration: const Duration(milliseconds: 400),
-            ),
-          );
+          // Validate single-device session
+          final sessionValid = await SyncService.instance.validateSession();
+          if (!sessionValid) {
+            // Another device signed in — sign out this one
+            final messenger = ScaffoldMessenger.of(context);
+            await FirebaseAuth.instance.signOut();
+            if (mounted) {
+              _navigate(const LoginScreen());
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'You were signed in on another device. Please sign in again.',
+                  ),
+                  duration: Duration(seconds: 5),
+                ),
+              );
+            }
+            return;
+          }
+
+          // First-login restore + weekly sync (both are no-ops if not needed)
+          await SyncService.instance.restoreFromCloudIfEmpty();
+          SyncService.instance.syncIfDue(); // fire and forget
+
+          _navigate(const LoginScreen());
         }
       }
     });
+  }
+
+  void _navigate(Widget screen) {
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => screen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
   }
 
   @override

@@ -1,5 +1,5 @@
 import 'package:attendance_management/models/subject.dart';
-import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -32,8 +32,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   Future<void> _loadData() async {
     try {
-      final subjects = await FirestoreService.instance.getAllSubjects();
-      final records = await FirestoreService.instance.getAllRecords();
+      final subjects = await LocalDbService.instance.getAllSubjects();
+      final records = await LocalDbService.instance.getAllRecords();
 
       setState(() {
         _subjects = subjects;

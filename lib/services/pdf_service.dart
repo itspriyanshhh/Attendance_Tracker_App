@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:attendance_management/models/subject.dart';
-import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -10,8 +10,8 @@ import 'package:printing/printing.dart';
 class PdfService {
   static Future<void> generateAttendanceReport() async {
     final pdf = pw.Document();
-    final subjects = await FirestoreService.instance.getAllSubjects();
-    final records = await FirestoreService.instance.getAllRecords();
+    final subjects = await LocalDbService.instance.getAllSubjects();
+    final records = await LocalDbService.instance.getAllRecords();
 
     // Calculate summary data
     int totalClassesHeld = 0;

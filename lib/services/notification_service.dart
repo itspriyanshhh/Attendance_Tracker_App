@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:attendance_management/models/subject.dart';
-import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:flutter/foundation.dart';
@@ -270,8 +270,8 @@ class AttendanceMonitor {
   /// below threshold.
   Future<void> checkAll() async {
     try {
-      final subjects = await FirestoreService.instance.getAllSubjects();
-      final records = await FirestoreService.instance.getAllRecords();
+      final subjects = await LocalDbService.instance.getAllSubjects();
+      final records = await LocalDbService.instance.getAllRecords();
 
       final Map<String, int> pointsPerSubject = {
         for (var s in subjects) s.id!: (s.isLab ? 2 : 1),

@@ -1,5 +1,5 @@
 import 'package:attendance_management/models/planner_item.dart';
-import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -27,7 +27,7 @@ class _PlannerScreenState extends State<PlannerScreen>
   Future<void> _loadItems() async {
     setState(() => _isLoading = true);
     try {
-      final items = await FirestoreService.instance.getPlannerItems();
+      final items = await LocalDbService.instance.getPlannerItems();
       setState(() {
         _items = items;
         _isLoading = false;
@@ -132,7 +132,7 @@ class _PlannerScreenState extends State<PlannerScreen>
               onChanged: (val) async {
                 if (val == null) return;
                 item.isCompleted = val;
-                await FirestoreService.instance.updatePlannerItem(item);
+                await LocalDbService.instance.updatePlannerItem(item);
                 _loadItems();
               },
             ),
@@ -226,7 +226,7 @@ class _PlannerScreenState extends State<PlannerScreen>
                 );
 
                 if (confirm == true && item.id != null) {
-                  await FirestoreService.instance.deletePlannerItem(item.id!);
+                  await LocalDbService.instance.deletePlannerItem(item.id!);
                   _loadItems();
                 }
               },
@@ -365,9 +365,9 @@ class _PlannerScreenState extends State<PlannerScreen>
                       );
 
                       if (item == null) {
-                        await FirestoreService.instance.addPlannerItem(newItem);
+                        await LocalDbService.instance.addPlannerItem(newItem);
                       } else {
-                        await FirestoreService.instance.updatePlannerItem(
+                        await LocalDbService.instance.updatePlannerItem(
                           newItem,
                         );
                       }

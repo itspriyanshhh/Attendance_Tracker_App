@@ -1,4 +1,5 @@
 import 'package:attendance_management/ui/main_nav.dart';
+import 'package:attendance_management/services/sync_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +33,8 @@ class LoginScreen extends StatelessWidget {
       );
 
       await FirebaseAuth.instance.signInWithCredential(credential);
+      // Register this device as the active session so other devices are kicked out
+      await SyncService.instance.registerSession();
     } catch (e) {
       String errorMessage = 'Sign-in failed: $e';
       if (e is FirebaseAuthException) {

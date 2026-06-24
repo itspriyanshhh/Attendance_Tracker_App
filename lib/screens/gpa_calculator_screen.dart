@@ -10,7 +10,7 @@ class GPACalculatorScreen extends StatefulWidget {
 
 class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
   // SGPA State
-  final List<CourseInput> _courses = [CourseInput()];
+  final List<CourseInput> _courses = [];
   double _calculatedSGPA = 0.0;
 
   // CGPA State
@@ -18,17 +18,39 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
   final _creditsCompletedController = TextEditingController();
   double _predictedCGPA = 0.0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Add one course by default
+    _courses.add(CourseInput());
+  }
+
+  @override
+  void dispose() {
+    for (var course in _courses) {
+      course.marksController.dispose();
+    }
+    _currentCGPAController.dispose();
+    _creditsCompletedController.dispose();
+    super.dispose();
+  }
+
   void _addCourse() {
     setState(() {
       _courses.add(CourseInput());
     });
+    _calculateSGPA();
+    _calculateCGPA();
   }
 
   void _removeCourse(int index) {
     if (_courses.length > 1) {
       setState(() {
+        _courses[index].marksController.dispose();
         _courses.removeAt(index);
       });
+      _calculateSGPA();
+      _calculateCGPA();
     }
   }
 
@@ -37,8 +59,13 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
     double totalCredits = 0;
 
     for (var course in _courses) {
-      totalPoints += course.credits * _getGradePoint(course.grade);
-      totalCredits += course.credits;
+      double? marks = course.marks;
+      if (marks != null && marks >= 0 && marks <= 100) {
+        totalPoints += course.credits * _getGradePoint(marks);
+        totalCredits += course.credits;
+      } else {
+        totalCredits += course.credits;
+      }
     }
 
     setState(() {
@@ -57,8 +84,13 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
     double semesterCredits = 0;
 
     for (var course in _courses) {
-      semesterPoints += course.credits * _getGradePoint(course.grade);
-      semesterCredits += course.credits;
+      double? marks = course.marks;
+      if (marks != null && marks >= 0 && marks <= 100) {
+        semesterPoints += course.credits * _getGradePoint(marks);
+        semesterCredits += course.credits;
+      } else {
+        semesterCredits += course.credits;
+      }
     }
 
     double newTotalPoints = currentTotalPoints + semesterPoints;
@@ -71,25 +103,160 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
     });
   }
 
-  int _getGradePoint(String grade) {
+  String _getGrade(double? marks) {
+    if (marks == null) return 'F';
+    if (marks > 100 || marks < 0) return 'Invalid';
+    if (marks >= 90 && marks <= 100) return 'O';
+    if (marks >= 75 && marks < 90) return 'A+';
+    if (marks >= 65 && marks < 75) return 'A';
+    if (marks >= 55 && marks < 65) return 'B+';
+    if (marks >= 50 && marks < 55) return 'B';
+    if (marks >= 45 && marks < 50) return 'C';
+    if (marks >= 40 && marks < 45) return 'P';
+    return 'F';
+  }
+
+  int _getGradePoint(double? marks) {
+    if (marks == null || marks > 100 || marks < 0) return 0;
+    if (marks >= 90 && marks <= 100) return 10;
+    if (marks >= 75 && marks < 90) return 9;
+    if (marks >= 65 && marks < 75) return 8;
+    if (marks >= 55 && marks < 65) return 7;
+    if (marks >= 50 && marks < 55) return 6;
+    if (marks >= 45 && marks < 50) return 5;
+    if (marks >= 40 && marks < 45) return 4;
+    return 0;
+  }
+
+  Color _getGradeColor(String grade) {
     switch (grade) {
-      case 'S':
-        return 10;
+      case 'O':
+        return Colors.green.shade800;
+      case 'A+':
+        return Colors.green;
       case 'A':
-        return 9;
+        return Colors.lightGreen.shade700;
+      case 'B+':
+        return Colors.blue.shade700;
       case 'B':
-        return 8;
+        return Colors.teal;
       case 'C':
-        return 7;
-      case 'D':
-        return 6;
-      case 'E':
-        return 5;
+        return Colors.amber.shade700;
+      case 'P':
+        return Colors.orange;
       case 'F':
-        return 0;
+      case 'Invalid':
       default:
-        return 0;
+        return Colors.red;
     }
+  }
+
+  void _showGradingSystemLegend() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        final theme = Theme.of(context);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Grading System Reference',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Table(
+                    border: TableBorder.all(
+                      color: theme.dividerColor.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    columnWidths: const {
+                      0: FlexColumnWidth(2),
+                      1: FlexColumnWidth(1),
+                      2: FlexColumnWidth(1),
+                    },
+                    children: [
+                      TableRow(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                        ),
+                        children: [
+                          _buildCell('Marks Range', isHeader: true),
+                          _buildCell('Grade', isHeader: true),
+                          _buildCell('GP', isHeader: true),
+                        ],
+                      ),
+                      _buildRow('90 - 100', 'O', '10'),
+                      _buildRow('75 - 89', 'A+', '9'),
+                      _buildRow('65 - 74', 'A', '8'),
+                      _buildRow('55 - 64', 'B+', '7'),
+                      _buildRow('50 - 54', 'B', '6'),
+                      _buildRow('45 - 49', 'C', '5'),
+                      _buildRow('40 - 44', 'P', '4'),
+                      _buildRow('Less than 40', 'F', '0'),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Note: Grade P (Grade Point 4) is the course passing grade. For grades below passing, the associated grade points shall be zero.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCell(String text, {bool isHeader = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.poppins(
+          fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+          fontSize: isHeader ? 14 : 13,
+        ),
+      ),
+    );
+  }
+
+  TableRow _buildRow(String range, String grade, String gp) {
+    return TableRow(
+      children: [
+        _buildCell(range),
+        _buildCell(grade),
+        _buildCell(gp),
+      ],
+    );
   }
 
   @override
@@ -110,84 +277,194 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // SGPA Section
-            Text(
-              'Semester GPA (SGPA)',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.primary,
-              ),
+            // SGPA Section Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Semester GPA (SGPA)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _showGradingSystemLegend,
+                  icon: const Icon(Icons.info_outline, size: 16),
+                  label: Text(
+                    'Grading System',
+                    style: GoogleFonts.poppins(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // Courses List
             ..._courses.asMap().entries.map((entry) {
               int idx = entry.key;
               CourseInput course = entry.value;
+              String grade = _getGrade(course.marks);
+              int gp = _getGradePoint(course.marks);
+              Color gradeColor = _getGradeColor(grade);
+
               return Padding(
+                key: ValueKey(course),
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: DropdownButtonFormField<int>(
-                        value: course.credits,
-                        decoration: InputDecoration(
-                          labelText: 'Credits',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        items: [1, 2, 3, 4, 5]
-                            .map(
-                              (c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(c.toString()),
+                child: Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: theme.dividerColor.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Subject ${idx + 1}',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: colorScheme.onSurfaceVariant,
                               ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => course.credits = v!),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: DropdownButtonFormField<String>(
-                        value: course.grade,
-                        decoration: InputDecoration(
-                          labelText: 'Grade',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
+                            ),
+                            if (_courses.length > 1)
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 20),
+                                color: Colors.red.shade400,
+                                onPressed: () => _removeCourse(idx),
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                              ),
+                          ],
                         ),
-                        items: ['S', 'A', 'B', 'C', 'D', 'E', 'F']
-                            .map(
-                              (g) => DropdownMenuItem(value: g, child: Text(g)),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => course.grade = v!),
-                      ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            // Credits Dropdown
+                            Expanded(
+                              flex: 3,
+                              child: DropdownButtonFormField<int>(
+                                initialValue: course.credits,
+                                decoration: InputDecoration(
+                                  labelText: 'Credits',
+                                  isDense: true,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                items: [1, 2, 3, 4, 5, 6]
+                                    .map(
+                                      (c) => DropdownMenuItem(
+                                        value: c,
+                                        child: Text('$c Credits'),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) {
+                                  setState(() {
+                                    course.credits = v!;
+                                  });
+                                  _calculateSGPA();
+                                  _calculateCGPA();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Marks Input
+                            Expanded(
+                              flex: 3,
+                              child: TextFormField(
+                                controller: course.marksController,
+                                keyboardType: const TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                                decoration: InputDecoration(
+                                  labelText: 'Marks (0-100)',
+                                  hintText: 'e.g. 85',
+                                  isDense: true,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                onChanged: (v) {
+                                  setState(() {});
+                                  _calculateSGPA();
+                                  _calculateCGPA();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Grade & GP Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: gradeColor.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: gradeColor.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    grade,
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: gradeColor,
+                                    ),
+                                  ),
+                                  Text(
+                                    '$gp GP',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600,
+                                      color: gradeColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      color: Colors.red,
-                      onPressed: () => _removeCourse(idx),
-                    ),
-                  ],
+                  ),
                 ),
               );
-            }).toList(),
+            }),
+
             TextButton.icon(
               onPressed: _addCourse,
               icon: const Icon(Icons.add),
-              label: const Text('Add Subject'),
+              label: Text(
+                'Add Subject',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              ),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -216,8 +493,11 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: colorScheme.primaryContainer.withOpacity(0.5),
+                color: colorScheme.primaryContainer.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -228,13 +508,15 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
                         'Estimated SGPA',
                         style: GoogleFonts.poppins(
                           fontSize: 14,
+                          fontWeight: FontWeight.w500,
                           color: colorScheme.onPrimaryContainer,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         _calculatedSGPA.toStringAsFixed(2),
                         style: GoogleFonts.poppins(
-                          fontSize: 32,
+                          fontSize: 36,
                           fontWeight: FontWeight.bold,
                           color: colorScheme.primary,
                         ),
@@ -255,10 +537,13 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
                 color: colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               'Predict your new CGPA based on the above SGPA.',
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -266,13 +551,16 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: _currentCGPAController,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Current CGPA',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
+                    onChanged: (v) => _calculateCGPA(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -286,6 +574,7 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
+                    onChanged: (v) => _calculateCGPA(),
                   ),
                 ),
               ],
@@ -294,8 +583,11 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: colorScheme.secondaryContainer.withOpacity(0.5),
+                color: colorScheme.secondaryContainer.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: colorScheme.secondary.withValues(alpha: 0.1),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -306,13 +598,15 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
                         'Predicted CGPA',
                         style: GoogleFonts.poppins(
                           fontSize: 14,
+                          fontWeight: FontWeight.w500,
                           color: colorScheme.onSecondaryContainer,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         _predictedCGPA.toStringAsFixed(2),
                         style: GoogleFonts.poppins(
-                          fontSize: 32,
+                          fontSize: 36,
                           fontWeight: FontWeight.bold,
                           color: colorScheme.secondary,
                         ),
@@ -331,7 +625,10 @@ class _GPACalculatorScreenState extends State<GPACalculatorScreen> {
 
 class CourseInput {
   int credits;
-  String grade;
+  final TextEditingController marksController;
 
-  CourseInput({this.credits = 3, this.grade = 'A'});
+  CourseInput({this.credits = 3, String initialMarks = ''})
+      : marksController = TextEditingController(text: initialMarks);
+
+  double? get marks => double.tryParse(marksController.text);
 }

@@ -3,9 +3,11 @@ import 'package:attendance_management/screens/history_screen.dart';
 import 'package:attendance_management/screens/login_screen.dart';
 import 'package:attendance_management/screens/privacy_policy_screen.dart';
 import 'package:attendance_management/screens/profile_screen.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
 import 'package:attendance_management/services/pdf_service.dart';
+import 'package:attendance_management/services/sync_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,11 +33,18 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isProcessing = false;
   bool _remindersEnabled = true;
+  DateTime? _lastSyncTime;
 
   @override
   void initState() {
     super.initState();
     _loadRemindersPref();
+    _loadLastSyncTime();
+  }
+
+  Future<void> _loadLastSyncTime() async {
+    final t = await SyncService.instance.lastSyncTime();
+    if (mounted) setState(() => _lastSyncTime = t);
   }
 
   Future<void> _loadRemindersPref() async {
@@ -54,7 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (value) {
         // Fetch subjects and schedule
-        final subjects = await FirestoreService.instance.getAllSubjects();
+        final subjects = await LocalDbService.instance.getAllSubjects();
         await NotificationService.instance.scheduleClassReminders(subjects);
         if (mounted) {
           ScaffoldMessenger.of(
@@ -117,9 +126,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() => _isProcessing = true);
     try {
-      await FirestoreService.instance.deleteAllSubjects();
+      await LocalDbService.instance.deleteAllSubjects();
       // also ensure any orphan records are removed (defensive)
-      await FirestoreService.instance.deleteAllRecords();
+      await LocalDbService.instance.deleteAllRecords();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -171,7 +180,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() => _isProcessing = true);
     try {
-      await FirestoreService.instance.deleteAllRecords();
+      await LocalDbService.instance.deleteAllRecords();
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('All attendance history deleted')),
@@ -185,6 +194,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) setState(() => _isProcessing = false);
     }
   }
+
+  Future<void> _syncNow() async {
+    setState(() => _isProcessing = true);
+    try {
+      await SyncService.instance.pushToCloud();
+      final t = await SyncService.instance.lastSyncTime();
+      if (mounted) {
+        setState(() => _lastSyncTime = t);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data synced to cloud successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Sync failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  String _formatSyncTime(DateTime t) {
+    final now = DateTime.now();
+    final diff = now.difference(t);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
 
   Future<void> _generateReport() async {
     setState(() => _isProcessing = true);
@@ -270,8 +311,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() => _isProcessing = true);
     try {
-      // 1. Delete data from Firestore
+      // 1. Delete data from Firestore AND local DB
       await FirestoreService.instance.deleteUserData();
+      await LocalDbService.instance.wipeAll();
 
       // 2. Delete Auth Account
       final user = FirebaseAuth.instance.currentUser;
@@ -436,6 +478,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
 
                 _buildSectionHeader('DATA MANAGEMENT', context),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.cloud_sync_rounded,
+                  title: 'Sync to Cloud',
+                  subtitle: _lastSyncTime == null
+                      ? 'Never synced'
+                      : 'Last synced: ${_formatSyncTime(_lastSyncTime!)}',
+                  iconColor: Colors.teal,
+                  onTap: _isProcessing ? null : _syncNow,
+                ),
                 _buildSettingTile(
                   context,
                   icon: Icons.history_rounded,

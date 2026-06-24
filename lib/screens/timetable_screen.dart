@@ -1,5 +1,5 @@
 import 'package:attendance_management/models/subject.dart';
-import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
 
 import 'package:flutter/material.dart';
@@ -26,7 +26,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
   }
 
   Future<void> _loadSubjects() async {
-    final subjects = await FirestoreService.instance.getAllSubjects();
+    final subjects = await LocalDbService.instance.getAllSubjects();
     setState(() {
       _subjects = subjects;
       _isLoading = false;
@@ -113,7 +113,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                       return aMin.compareTo(bMin);
                     });
 
-                    await FirestoreService.instance.updateSubject(
+                    await LocalDbService.instance.updateSubject(
                       updatedSubject,
                     );
 
@@ -168,7 +168,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
     if (confirm == true) {
       setState(() => _isLoading = true);
       try {
-        await FirestoreService.instance.clearAllTimetables();
+        await LocalDbService.instance.clearAllTimetables();
         await _loadSubjects();
         // Clear notifications
         await NotificationService.instance.cancelAll();
@@ -192,7 +192,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   Future<void> _removeSlot(Subject subject, ScheduleSlot slot) async {
     subject.schedule.remove(slot);
-    await FirestoreService.instance.updateSubject(subject);
+    await LocalDbService.instance.updateSubject(subject);
     await NotificationService.instance.scheduleClassReminders(_subjects);
     setState(() {});
   }

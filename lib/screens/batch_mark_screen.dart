@@ -1,7 +1,7 @@
 // ignore_for_file: sort_child_properties_last
 
 import 'package:attendance_management/models/subject.dart';
-import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -47,7 +47,7 @@ class _BatchMarkScreenState extends State<BatchMarkScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final subs = await FirestoreService.instance.getAllSubjects();
+      final subs = await LocalDbService.instance.getAllSubjects();
       final map = {for (var s in subs) s.id!: SubjectMark()};
       setState(() {
         _subjects = subs;
@@ -151,7 +151,7 @@ class _BatchMarkScreenState extends State<BatchMarkScreen> {
         totalMissedAdded += addMissed;
 
         try {
-          final existing = await FirestoreService.instance
+          final existing = await LocalDbService.instance
               .getRecordForSubjectAndDate(sid, iso);
           if (existing != null) {
             // save previous snapshot for undo
@@ -169,7 +169,7 @@ class _BatchMarkScreenState extends State<BatchMarkScreen> {
 
             existing.held += addHeld;
             existing.attended += addAttended;
-            await FirestoreService.instance.updateRecord(existing);
+            await LocalDbService.instance.updateRecord(existing);
           } else {
             snapshots.add({
               'subjectId': sid,
@@ -182,8 +182,8 @@ class _BatchMarkScreenState extends State<BatchMarkScreen> {
               held: addHeld,
               attended: addAttended,
             );
-            await FirestoreService.instance.insertRecord(newRec);
-            final created = await FirestoreService.instance
+            await LocalDbService.instance.insertRecord(newRec);
+            final created = await LocalDbService.instance
                 .getRecordForSubjectAndDate(sid, iso);
             if (created != null) snapshots.last['resultId'] = created.id;
           }
@@ -234,7 +234,7 @@ class _BatchMarkScreenState extends State<BatchMarkScreen> {
           // newly created record — delete by id if we have it, otherwise attempt lookup and delete
           String? idToDelete = resultId;
           if (idToDelete == null) {
-            final found = await FirestoreService.instance
+            final found = await LocalDbService.instance
                 .getRecordForSubjectAndDate(
                   sid,
                   DateFormat('yyyy-MM-dd').format(_selectedDate),
@@ -242,7 +242,7 @@ class _BatchMarkScreenState extends State<BatchMarkScreen> {
             idToDelete = found?.id;
           }
           if (idToDelete != null)
-            await FirestoreService.instance.deleteRecord(idToDelete);
+            await LocalDbService.instance.deleteRecord(idToDelete);
         } else {
           // existed before — restore previous values
           final restoreId = prev.id ?? resultId;
@@ -254,14 +254,14 @@ class _BatchMarkScreenState extends State<BatchMarkScreen> {
               held: prev.held,
               attended: prev.attended,
             );
-            await FirestoreService.instance.updateRecord(restore);
+            await LocalDbService.instance.updateRecord(restore);
           } else {
-            final fetched = await FirestoreService.instance
+            final fetched = await LocalDbService.instance
                 .getRecordForSubjectAndDate(prev.subjectId, prev.date);
             if (fetched != null) {
               fetched.held = prev.held;
               fetched.attended = prev.attended;
-              await FirestoreService.instance.updateRecord(fetched);
+              await LocalDbService.instance.updateRecord(fetched);
             }
           }
         }

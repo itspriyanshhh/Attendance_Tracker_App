@@ -1,7 +1,8 @@
 import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/screens/safe_bunk_sheet.dart';
-import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:attendance_management/services/home_widget_service.dart';
+import 'package:attendance_management/services/sync_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:attendance_management/screens/gpa_calculator_screen.dart';
@@ -62,8 +63,12 @@ class AttendanceHomeState extends State<AttendanceHome>
 
   Future<void> _loadData({bool showLoading = true}) async {
     if (showLoading) setState(() => _isLoading = true);
-    List<Subject> subjects = await FirestoreService.instance.getAllSubjects();
-    List<AttendanceRecord> records = await FirestoreService.instance
+    
+    // Ensure any cloud data is restored to local DB if empty (e.g. first login)
+    await SyncService.instance.restoreFromCloudIfEmpty();
+
+    List<Subject> subjects = await LocalDbService.instance.getAllSubjects();
+    List<AttendanceRecord> records = await LocalDbService.instance
         .getAllRecords();
     setState(() {
       _subjects = subjects;
@@ -247,7 +252,7 @@ class AttendanceHomeState extends State<AttendanceHome>
                               color: '#FFFFFF',
                             );
                             try {
-                              await FirestoreService.instance.insertSubject(
+                              await LocalDbService.instance.insertSubject(
                                 newSubject,
                               );
                               await _loadData();
@@ -311,7 +316,7 @@ class AttendanceHomeState extends State<AttendanceHome>
 
     if (confirm == true) {
       try {
-        await FirestoreService.instance.deleteSubject(subject.id!);
+        await LocalDbService.instance.deleteSubject(subject.id!);
         _loadData();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${subject.name} deleted successfully')),

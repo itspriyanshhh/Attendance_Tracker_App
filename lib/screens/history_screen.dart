@@ -1,6 +1,6 @@
 import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/screens/edit_day_screen.dart';
-import 'package:attendance_management/services/firestore_service.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -40,13 +40,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     print('DEBUG: _loadDates called');
     setState(() => _isLoading = true);
     try {
-      final dates = await FirestoreService.instance.getUniqueDates();
+      final dates = await LocalDbService.instance.getUniqueDates();
       print('DEBUG: Fetched ${dates.length} dates: $dates');
 
-      final allRecords = await FirestoreService.instance.getAllRecords();
+      final allRecords = await LocalDbService.instance.getAllRecords();
       print('DEBUG: Fetched ${allRecords.length} records');
 
-      final allSubjects = await FirestoreService.instance.getAllSubjects();
+      final allSubjects = await LocalDbService.instance.getAllSubjects();
       print('DEBUG: Fetched ${allSubjects.length} subjects');
 
       // Build recordsByDate map
@@ -244,7 +244,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (confirmed == true) {
       setState(() => _isLoading = true);
       try {
-        await FirestoreService.instance.deleteRecordsForDate(date);
+        await LocalDbService.instance.deleteRecordsForDate(date);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Records deleted successfully')),
