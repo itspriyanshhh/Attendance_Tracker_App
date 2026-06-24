@@ -311,6 +311,10 @@ footer {
 
 /* Responsive */
 @media (max-width: 768px) {
+  .nav-links {
+    display: none;
+  }
+
   .hero-grid {
     grid-template-columns: 1fr;
     gap: 48px;
