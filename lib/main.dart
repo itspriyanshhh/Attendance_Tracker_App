@@ -1,5 +1,6 @@
 // add near the top of the file (next to your imports)
 import 'package:attendance_management/screens/splash_screen.dart';
+import 'package:attendance_management/services/local_db_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,12 @@ void main() async {
   await NotificationService.instance.init();
   await _loadDarkMode();
   AttendanceMonitor.instance.start();
+
+  // Reschedule class reminders on every app launch
+  // (ensures notifications survive reboots and data clears)
+  final subjects = await LocalDbService.instance.getAllSubjects();
+  await NotificationService.instance.scheduleClassReminders(subjects);
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

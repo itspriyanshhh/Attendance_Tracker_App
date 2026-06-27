@@ -54,6 +54,13 @@ class NotificationService {
     );
     await _fln.initialize(initSettings);
 
+    // Request local notification permission on Android 13+ (API 33)
+    final androidPlugin = _fln
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await androidPlugin?.requestNotificationsPermission();
+
     // Request FCM / platform permissions for iOS
     await FirebaseMessaging.instance.requestPermission();
   }
@@ -119,17 +126,27 @@ class NotificationService {
       return;
     }
 
+    // Request exact alarm permission on Android 12+ (API 31)
+    final androidPlugin = _fln
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await androidPlugin?.requestExactAlarmsPermission();
+
     // Clear existing to avoid stale / duplicate schedules
     await cancelAll();
 
     for (final subject in subjects) {
       for (final slot in subject.schedule) {
-        // Stable, unique base ID derived from subject + day
-        // Range: 0 – 999_999 (safe for notification IDs which are int)
+        // Stable, unique base ID derived from subject + day + time
+        // Incorporates hour to avoid collisions for multiple classes
+        // on the same day for the same subject.
         final baseId =
-            (subject.id.hashCode.abs() % 5000) * 100 + (slot.dayOfWeek * 2);
+            (subject.id.hashCode.abs() % 5000) * 10000 +
+            (slot.dayOfWeek * 100) +
+            (slot.startTime.hour * 2);
 
-        final preClassId = baseId;      // even → pre-class
+        final preClassId = baseId; // even → pre-class
         final postClassId = baseId + 1; // odd  → post-class
 
         // ---- 1. Pre-class reminder ----
@@ -255,7 +272,7 @@ class AttendanceMonitor {
   static const String _lastNotificationKey = 'last_low_attendance_notification';
 
   Future<void> start() async {
-    await NotificationService.instance.init();
+    // init() is already called in main.dart before start()
     await checkAll();
     _timer?.cancel();
     _timer = Timer.periodic(_pollInterval, (_) => checkAll());
@@ -286,8 +303,9 @@ class AttendanceMonitor {
         attendedPoints += r.attended * ptsPerSession;
       }
 
-      final totalPerc =
-          totalPoints > 0 ? (attendedPoints / totalPoints) * 100.0 : 100.0;
+      final totalPerc = totalPoints > 0
+          ? (attendedPoints / totalPoints) * 100.0
+          : 100.0;
 
       if (totalPerc < threshold) {
         final prefs = await SharedPreferences.getInstance();
