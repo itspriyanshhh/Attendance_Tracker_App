@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/services/local_db_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,6 +32,10 @@ const _kAttendanceChannelDesc = 'Alerts when attendance is below threshold';
 // How many minutes before the class the pre-class reminder fires
 const int _kPreClassOffsetMinutes = 10;
 
+// Notification action IDs for post-class attendance buttons
+const String _kActionAttended = 'mark_attended';
+const String _kActionMissed = 'mark_missed';
+
 // ---------------------------------------------------------------------------
 
 class NotificationService {
@@ -41,6 +48,10 @@ class NotificationService {
   static const String _prefKey = 'class_reminders_enabled';
 
   Future<void> init() async {
+    // Configure the local timezone so scheduled notifications fire at the
+    // correct local time (not UTC).
+    await _configureLocalTimezone();
+
     const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings iosInit = DarwinInitializationSettings(
@@ -52,7 +63,12 @@ class NotificationService {
       android: androidInit,
       iOS: iosInit,
     );
-    await _fln.initialize(initSettings);
+    await _fln.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: onNotificationActionResponse,
+      onDidReceiveBackgroundNotificationResponse:
+          onBackgroundNotificationActionResponse,
+    );
 
     // Request local notification permission on Android 13+ (API 33)
     final androidPlugin = _fln
@@ -64,6 +80,51 @@ class NotificationService {
     // Request FCM / platform permissions for iOS
     await FirebaseMessaging.instance.requestPermission();
   }
+
+  /// Detects the device timezone and sets [tz.local] accordingly.
+  /// Without this, [tz.local] defaults to UTC and all scheduled
+  /// notifications fire at the wrong time.
+  Future<void> _configureLocalTimezone() async {
+    try {
+      final timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+      final name = timeZoneInfo.identifier;
+      try {
+        tz.setLocalLocation(tz.getLocation(name));
+      } catch (_) {
+        // Some devices return legacy IANA names (e.g. "Asia/Calcutta")
+        // that the timezone package doesn't have. Map to the modern name.
+        final mapped = _legacyTimezoneMap[name];
+        if (mapped != null) {
+          tz.setLocalLocation(tz.getLocation(mapped));
+          debugPrint(
+            'NotificationService: Mapped legacy timezone $name → $mapped',
+          );
+        } else {
+          debugPrint(
+            'NotificationService: Unknown timezone "$name", falling back to UTC',
+          );
+          return;
+        }
+      }
+      debugPrint('NotificationService: Device timezone = $name');
+    } catch (e) {
+      // Fallback: keep tz.local as UTC if detection fails
+      debugPrint('NotificationService: Failed to get local timezone: $e');
+    }
+  }
+
+  /// Legacy IANA timezone names that some Android devices still report.
+  static const _legacyTimezoneMap = <String, String>{
+    'Asia/Calcutta': 'Asia/Kolkata',
+    'Asia/Saigon': 'Asia/Ho_Chi_Minh',
+    'Asia/Katmandu': 'Asia/Kathmandu',
+    'Asia/Rangoon': 'Asia/Yangon',
+    'Pacific/Ponape': 'Pacific/Pohnpei',
+    'Pacific/Truk': 'Pacific/Chuuk',
+    'America/Buenos_Aires': 'America/Argentina/Buenos_Aires',
+    'Europe/Kiev': 'Europe/Kyiv',
+    'Atlantic/Faeroe': 'Atlantic/Faroe',
+  };
 
   Future<bool> areRemindersEnabled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -166,6 +227,10 @@ class NotificationService {
 
         // ---- 2. Post-class mark-attendance reminder ----
         final classDuration = subject.isLab ? 100 : 50; // minutes
+        final payload = jsonEncode({
+          'subjectId': subject.id,
+          'subjectName': subject.name,
+        });
         await _scheduleWeekly(
           id: postClassId,
           title: '✅ Mark Your Attendance',
@@ -178,6 +243,21 @@ class NotificationService {
           channelId: _kPostClassChannelId,
           channelName: _kPostClassChannelName,
           channelDesc: _kPostClassChannelDesc,
+          payload: payload,
+          actions: const <AndroidNotificationAction>[
+            AndroidNotificationAction(
+              _kActionAttended,
+              'Attended ✅',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+            AndroidNotificationAction(
+              _kActionMissed,
+              'Missed ❌',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+          ],
         );
       }
     }
@@ -198,6 +278,8 @@ class NotificationService {
     required String channelId,
     required String channelName,
     required String channelDesc,
+    String? payload,
+    List<AndroidNotificationAction>? actions,
   }) async {
     final now = tz.TZDateTime.now(tz.local);
 
@@ -228,30 +310,111 @@ class NotificationService {
           channelDescription: channelDesc,
           importance: Importance.high,
           priority: Priority.high,
+          actions: actions,
         );
 
     final NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
     );
 
-    await _fln.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduledDate,
-      platformDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-    );
+    try {
+      await _fln.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledDate,
+        platformDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+        payload: payload,
+      );
 
-    debugPrint(
-      'Scheduled #$id [$channelId]: "$title" at $scheduledDate '
-      '(${_weekdayName(dayOfWeek)} ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} ${addMinutes >= 0 ? '+' : ''}${addMinutes}min)',
-    );
+      debugPrint(
+        'Scheduled #$id [$channelId]: "$title" at $scheduledDate '
+        '(${_weekdayName(dayOfWeek)} ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} ${addMinutes >= 0 ? '+' : ''}${addMinutes}min)',
+      );
+    } catch (e) {
+      debugPrint(
+        'Failed to schedule #$id [$channelId]: $e',
+      );
+    }
   }
 
   String _weekdayName(int d) =>
       const ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d];
+
+  /// Foreground notification-action handler.
+  static void onNotificationActionResponse(NotificationResponse response) {
+    handleAttendanceAction(response);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Top-level background handler (must be outside any class & public)
+// ---------------------------------------------------------------------------
+
+/// Called when a notification action is tapped while the app is in the
+/// background or terminated. Must be a top-level, non-private function.
+@pragma('vm:entry-point')
+void onBackgroundNotificationActionResponse(NotificationResponse response) {
+  handleAttendanceAction(response);
+}
+
+/// Shared handler for both foreground and background action taps.
+/// Marks attendance in the local DB based on the action pressed.
+Future<void> handleAttendanceAction(NotificationResponse response) async {
+  // Only handle action button taps, not notification body taps
+  if (response.notificationResponseType !=
+      NotificationResponseType.selectedNotificationAction) {
+    return;
+  }
+
+  final actionId = response.actionId;
+  final payload = response.payload;
+  if (actionId == null || payload == null) return;
+  if (actionId != _kActionAttended && actionId != _kActionMissed) return;
+
+  try {
+    // Ensure Flutter bindings are ready (may run before main())
+    WidgetsFlutterBinding.ensureInitialized();
+
+    final data = jsonDecode(payload) as Map<String, dynamic>;
+    final subjectId = data['subjectId'] as String;
+    final subjectName = data['subjectName'] as String? ?? 'Unknown';
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    // Look up any existing record for this subject + today
+    final existing = await LocalDbService.instance.getRecordForSubjectAndDate(
+      subjectId,
+      today,
+    );
+
+    if (existing != null) {
+      // Increment the existing record
+      existing.held += 1;
+      if (actionId == _kActionAttended) {
+        existing.attended += 1;
+      }
+      await LocalDbService.instance.updateRecord(existing);
+    } else {
+      // Create a new record for today
+      await LocalDbService.instance.insertRecord(
+        AttendanceRecord(
+          subjectId: subjectId,
+          date: today,
+          held: 1,
+          attended: actionId == _kActionAttended ? 1 : 0,
+        ),
+      );
+    }
+
+    final action = actionId == _kActionAttended ? 'Attended' : 'Missed';
+    debugPrint(
+      'NotificationService: Marked "$action" for $subjectName (id=$subjectId) on $today',
+    );
+  } catch (e) {
+    debugPrint('NotificationService: Failed to handle attendance action: $e');
+  }
 }
 
 // ---------------------------------------------------------------------------
