@@ -46,6 +46,14 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   static const String _prefKey = 'class_reminders_enabled';
+  static const String _prefThreshold = 'attendance_threshold';
+  static const String _prefLectureDuration = 'lecture_duration_minutes';
+  static const String _prefLabDuration = 'lab_duration_minutes';
+
+  // Defaults
+  static const double defaultThreshold = 75.0;
+  static const int defaultLectureDuration = 50;
+  static const int defaultLabDuration = 100;
 
   Future<void> init() async {
     // Configure the local timezone so scheduled notifications fire at the
@@ -134,6 +142,40 @@ class NotificationService {
   Future<void> setRemindersEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefKey, enabled);
+  }
+
+  // --- Attendance threshold ---
+
+  Future<double> getThreshold() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_prefThreshold) ?? defaultThreshold;
+  }
+
+  Future<void> setThreshold(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_prefThreshold, value);
+  }
+
+  // --- Lecture / Lab durations ---
+
+  Future<int> getLectureDuration() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_prefLectureDuration) ?? defaultLectureDuration;
+  }
+
+  Future<void> setLectureDuration(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefLectureDuration, minutes);
+  }
+
+  Future<int> getLabDuration() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_prefLabDuration) ?? defaultLabDuration;
+  }
+
+  Future<void> setLabDuration(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefLabDuration, minutes);
   }
 
   /// Shows an immediate notification (used for low-attendance alerts etc.)
@@ -226,7 +268,9 @@ class NotificationService {
         );
 
         // ---- 2. Post-class mark-attendance reminder ----
-        final classDuration = subject.isLab ? 100 : 50; // minutes
+        final lecDur = await getLectureDuration();
+        final labDur = await getLabDuration();
+        final classDuration = subject.isLab ? labDur : lecDur; // minutes
         final payload = jsonEncode({
           'subjectId': subject.id,
           'subjectName': subject.name,
@@ -425,9 +469,6 @@ class AttendanceMonitor {
   AttendanceMonitor._();
   static final AttendanceMonitor instance = AttendanceMonitor._();
 
-  // Threshold (75%)
-  static const double threshold = 75.0;
-
   // check every X minutes while app is running
   static const Duration _pollInterval = Duration(minutes: 60);
 
@@ -469,6 +510,8 @@ class AttendanceMonitor {
       final totalPerc = totalPoints > 0
           ? (attendedPoints / totalPoints) * 100.0
           : 100.0;
+
+      final threshold = await NotificationService.instance.getThreshold();
 
       if (totalPerc < threshold) {
         final prefs = await SharedPreferences.getInstance();

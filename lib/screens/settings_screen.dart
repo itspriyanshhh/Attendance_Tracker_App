@@ -34,12 +34,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isProcessing = false;
   bool _remindersEnabled = true;
   DateTime? _lastSyncTime;
+  double _threshold = NotificationService.defaultThreshold;
+  int _lectureDuration = NotificationService.defaultLectureDuration;
+  int _labDuration = NotificationService.defaultLabDuration;
 
   @override
   void initState() {
     super.initState();
     _loadRemindersPref();
     _loadLastSyncTime();
+    _loadClassSettings();
   }
 
   Future<void> _loadLastSyncTime() async {
@@ -89,6 +93,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _loadClassSettings() async {
+    final ns = NotificationService.instance;
+    final t = await ns.getThreshold();
+    final ld = await ns.getLectureDuration();
+    final bd = await ns.getLabDuration();
+    if (mounted) {
+      setState(() {
+        _threshold = t;
+        _lectureDuration = ld;
+        _labDuration = bd;
+      });
+    }
+  }
+
+  Future<void> _onThresholdChanged(double value) async {
+    setState(() => _threshold = value);
+    await NotificationService.instance.setThreshold(value);
+  }
+
+  Future<void> _pickDuration({
+    required String label,
+    required int current,
+    required Future<void> Function(int) onSave,
+  }) async {
+    int picked = current;
+    final result = await showDialog<int>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: Text(
+                label,
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '$picked min',
+                    style: GoogleFonts.poppins(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Slider(
+                    value: picked.toDouble(),
+                    min: 20,
+                    max: 180,
+                    divisions: 32,
+                    label: '$picked min',
+                    onChanged: (v) {
+                      setDialogState(() => picked = v.round());
+                    },
+                  ),
+                  Text(
+                    'Post-class notification fires after this',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, picked),
+                  child: Text('Save', style: GoogleFonts.poppins()),
+                ),
+              ],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && result != current) {
+      await onSave(result);
+      // Reschedule notifications with new duration
+      final subjects = await LocalDbService.instance.getAllSubjects();
+      await NotificationService.instance.scheduleClassReminders(subjects);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$label updated to $result min')),
+        );
+      }
     }
   }
 
@@ -474,6 +574,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: _remindersEnabled,
                     onChanged: _isProcessing ? null : _toggleReminders,
                     activeColor: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.speed_rounded,
+                  title: 'Attendance Threshold',
+                  subtitle: '${_threshold.round()}% — alerts when below this',
+                  trailing: SizedBox(
+                    width: 140,
+                    child: Slider(
+                      value: _threshold,
+                      min: 50,
+                      max: 95,
+                      divisions: 9,
+                      label: '${_threshold.round()}%',
+                      onChanged: _onThresholdChanged,
+                    ),
+                  ),
+                ),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.menu_book_rounded,
+                  title: 'Lecture Duration',
+                  subtitle: '$_lectureDuration min per lecture',
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _pickDuration(
+                    label: 'Lecture Duration',
+                    current: _lectureDuration,
+                    onSave: (val) async {
+                      await NotificationService.instance.setLectureDuration(val);
+                      if (mounted) setState(() => _lectureDuration = val);
+                    },
+                  ),
+                ),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.science_rounded,
+                  title: 'Lab Duration',
+                  subtitle: '$_labDuration min per lab',
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _pickDuration(
+                    label: 'Lab Duration',
+                    current: _labDuration,
+                    onSave: (val) async {
+                      await NotificationService.instance.setLabDuration(val);
+                      if (mounted) setState(() => _labDuration = val);
+                    },
                   ),
                 ),
 
