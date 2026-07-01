@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:attendance_management/models/planner_item.dart';
 import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/services/local_db_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -124,7 +123,6 @@ class SyncService {
     try {
       final cloudToLocalSubjectId = await _pullSubjects(uid);
       await _pullRecords(uid, cloudToLocalSubjectId);
-      await _pullPlannerItems(uid, cloudToLocalSubjectId);
       debugPrint('SyncService: restore complete.');
     } catch (e) {
       debugPrint('SyncService: restore failed (offline?): $e');
@@ -178,35 +176,6 @@ class SyncService {
     debugPrint('SyncService: restored ${snapshot.docs.length} records.');
   }
 
-  Future<void> _pullPlannerItems(
-    String uid,
-    Map<String, String> cloudToLocalSubjectId,
-  ) async {
-    final snapshot = await _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('planner_items')
-        .get();
-    for (final doc in snapshot.docs) {
-      final data = doc.data()..['id'] = doc.id;
-      final item = PlannerItem.fromMap(data);
-
-      // Remap Firestore subject doc ID to new local SQLite autoincremented ID
-      if (item.subjectId != null) {
-        final localSubjectId = cloudToLocalSubjectId[item.subjectId];
-        if (localSubjectId != null) {
-          item.subjectId = localSubjectId;
-        }
-      }
-
-      item.id = null;
-      await LocalDbService.instance.addPlannerItem(item);
-    }
-    debugPrint(
-      'SyncService: restored ${snapshot.docs.length} planner items.',
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // Weekly push: Local → Firestore
   // ---------------------------------------------------------------------------
@@ -236,7 +205,6 @@ class SyncService {
     try {
       final subjects = await LocalDbService.instance.getAllSubjects();
       final records = await LocalDbService.instance.getAllRecords();
-      final plannerItems = await LocalDbService.instance.getPlannerItems();
 
       // Build a local-id → Firestore-doc-id map for subject cross-referencing
       final Map<String, String> localToCloudId = {};
@@ -291,36 +259,6 @@ class SyncService {
             });
       }
 
-      // --- Planner Items ---
-      final existingPlanner = await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('planner_items')
-          .get();
-      final plannerBatch = _firestore.batch();
-      for (final doc in existingPlanner.docs) {
-        plannerBatch.delete(doc.reference);
-      }
-      await plannerBatch.commit();
-
-      for (final p in plannerItems) {
-        final cloudSubjectId = p.subjectId != null
-            ? (localToCloudId[p.subjectId] ?? p.subjectId)
-            : null;
-        await _firestore
-            .collection('users')
-            .doc(uid)
-            .collection('planner_items')
-            .add({
-              'title': p.title,
-              'subjectId': cloudSubjectId,
-              'description': p.description,
-              'date': p.date.toIso8601String(),
-              'type': p.type,
-              'isCompleted': p.isCompleted,
-            });
-      }
-
       // Record sync time
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(
@@ -329,8 +267,7 @@ class SyncService {
       );
       debugPrint(
         'SyncService: push complete — '
-        '${subjects.length} subjects, ${records.length} records, '
-        '${plannerItems.length} planner items.',
+        '${subjects.length} subjects, ${records.length} records.',
       );
     } catch (e) {
       debugPrint('SyncService: pushToCloud failed: $e');

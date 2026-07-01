@@ -6,8 +6,6 @@ import 'package:attendance_management/screens/timetable_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:attendance_management/screens/planner_screen.dart';
-
 class MainNav extends StatefulWidget {
   const MainNav({super.key});
 
@@ -26,7 +24,6 @@ class _MainNavState extends State<MainNav> {
     super.initState();
     _pages = [
       const AttendanceHome(), // Home
-      const PlannerScreen(), // Planner
       const AnalyticsScreen(), // Analytics
       const BatchMarkScreen(), // Mark
       const TimetableScreen(), // Timetable
@@ -93,33 +90,26 @@ class _MainNavState extends State<MainNav> {
                   _NavItem(
                     index: 1,
                     currentIndex: _currentIndex,
-                    icon: Icons.calendar_today_rounded,
-                    label: 'Planner',
-                    onTap: _onTap,
-                  ),
-                  _NavItem(
-                    index: 2,
-                    currentIndex: _currentIndex,
                     icon: Icons.bar_chart_rounded,
                     label: 'Analytics',
                     onTap: _onTap,
                   ),
                   _NavItem(
-                    index: 3,
+                    index: 2,
                     currentIndex: _currentIndex,
                     icon: Icons.add_box_rounded,
                     label: 'Mark',
                     onTap: _onTap,
                   ),
                   _NavItem(
-                    index: 4,
+                    index: 3,
                     currentIndex: _currentIndex,
                     icon: Icons.calendar_month_rounded,
                     label: 'Timetable',
                     onTap: _onTap,
                   ),
                   _NavItem(
-                    index: 5,
+                    index: 4,
                     currentIndex: _currentIndex,
                     icon: Icons.settings_rounded,
                     label: 'Settings',

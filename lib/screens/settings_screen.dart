@@ -386,7 +386,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         content: Text(
-          'WARNING: This action is irreversible.\n\nIt will permanently delete:\n• All subjects and attendance records\n• All planner items\n• Your subscription details\n• Your account login\n\nAre you sure you want to proceed?',
+          'WARNING: This action is irreversible.\n\nIt will permanently delete:\n• All subjects and attendance records\n• Your subscription details\n• Your account login\n\nAre you sure you want to proceed?',
           style: GoogleFonts.poppins(),
         ),
         actions: [

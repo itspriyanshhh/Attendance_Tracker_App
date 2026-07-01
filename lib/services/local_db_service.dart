@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:attendance_management/models/planner_item.dart';
 import 'package:attendance_management/models/subject.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
@@ -44,18 +43,6 @@ class LocalDbService {
             held       INTEGER NOT NULL DEFAULT 0,
             attended   INTEGER NOT NULL DEFAULT 0,
             UNIQUE(subject_id, date)
-          )
-        ''');
-
-        await db.execute('''
-          CREATE TABLE planner_items (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            title        TEXT    NOT NULL,
-            subject_id   TEXT,
-            description  TEXT    NOT NULL DEFAULT '',
-            date         TEXT    NOT NULL,
-            type         TEXT    NOT NULL DEFAULT 'Assignment',
-            is_completed INTEGER NOT NULL DEFAULT 0
           )
         ''');
       },
@@ -211,43 +198,6 @@ class LocalDbService {
     await db.delete('attendance_records');
   }
 
-  // ---------------------------------------------------------------------------
-  // Planner Items
-  // ---------------------------------------------------------------------------
-
-  Future<List<PlannerItem>> getPlannerItems() async {
-    final db = await _database;
-    final rows = await db.query('planner_items', orderBy: 'date ASC');
-    return rows.map(_rowToPlannerItem).toList();
-  }
-
-  Future<PlannerItem> addPlannerItem(PlannerItem item) async {
-    final db = await _database;
-    final id = await db.insert('planner_items', _plannerItemToRow(item));
-    item.id = id.toString();
-    return item;
-  }
-
-  Future<void> updatePlannerItem(PlannerItem item) async {
-    final db = await _database;
-    if (item.id == null) return;
-    await db.update(
-      'planner_items',
-      _plannerItemToRow(item),
-      where: 'id = ?',
-      whereArgs: [int.parse(item.id!)],
-    );
-  }
-
-  Future<void> deletePlannerItem(String id) async {
-    final db = await _database;
-    await db.delete(
-      'planner_items',
-      where: 'id = ?',
-      whereArgs: [int.parse(id)],
-    );
-  }
-
   /// Returns true if the local DB has no subjects AND no records (empty state).
   Future<bool> isEmpty() async {
     final db = await _database;
@@ -262,7 +212,6 @@ class LocalDbService {
     final db = await _database;
     await db.delete('attendance_records');
     await db.delete('subjects');
-    await db.delete('planner_items');
   }
 
   // ---------------------------------------------------------------------------
@@ -306,22 +255,4 @@ class LocalDbService {
     'attended': r.attended,
   };
 
-  PlannerItem _rowToPlannerItem(Map<String, dynamic> row) => PlannerItem(
-    id: row['id'].toString(),
-    title: row['title'] as String,
-    subjectId: row['subject_id'] as String?,
-    description: row['description'] as String? ?? '',
-    date: DateTime.parse(row['date'] as String),
-    type: row['type'] as String? ?? 'Assignment',
-    isCompleted: (row['is_completed'] as int) == 1,
-  );
-
-  Map<String, dynamic> _plannerItemToRow(PlannerItem p) => {
-    'title': p.title,
-    'subject_id': p.subjectId,
-    'description': p.description,
-    'date': p.date.toIso8601String(),
-    'type': p.type,
-    'is_completed': p.isCompleted ? 1 : 0,
-  };
 }
