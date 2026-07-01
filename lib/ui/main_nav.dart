@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:attendance_management/screens/analytics_screen.dart';
 import 'package:attendance_management/screens/attendance_home.dart';
 import 'package:attendance_management/screens/batch_mark_screen.dart';
@@ -16,106 +17,102 @@ class MainNav extends StatefulWidget {
 class _MainNavState extends State<MainNav> {
   int _currentIndex = 0;
 
-  // Pages for each nav item
   late final List<Widget> _pages;
+
+  static const List<IconData> _icons = [
+    Icons.home_rounded,
+    Icons.bar_chart_rounded,
+    Icons.add_circle_rounded,
+    Icons.calendar_month_rounded,
+    Icons.settings_rounded,
+  ];
+
+  static const List<String> _labels = [
+    'Home',
+    'Analytics',
+    'Mark',
+    'Timetable',
+    'Settings',
+  ];
 
   @override
   void initState() {
     super.initState();
     _pages = [
-      const AttendanceHome(), // Home
-      const AnalyticsScreen(), // Analytics
-      const BatchMarkScreen(), // Mark
-      const TimetableScreen(), // Timetable
-      const SettingsScreen(), // Settings
+      const AttendanceHome(),
+      const AnalyticsScreen(),
+      const BatchMarkScreen(),
+      const TimetableScreen(),
+      const SettingsScreen(),
     ];
   }
 
-  void _onTap(int index) async {
+  void _onTap(int index) {
+    if (index == _currentIndex) return;
+    HapticFeedback.lightImpact();
     setState(() => _currentIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    // set system navigation bar color to match the nav container
-    final Color navBarColor = Theme.of(context).scaffoldBackgroundColor;
-    final Brightness navIconBrightness =
-        Theme.of(context).brightness == Brightness.dark
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Brightness navIconBrightness = isDark
         ? Brightness.light
         : Brightness.dark;
+
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
-        systemNavigationBarColor: navBarColor,
+        systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: navIconBrightness,
-        systemNavigationBarDividerColor: navBarColor,
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
     );
 
-    // Modern elevated rounded container for nav
     return Scaffold(
-      // show selected page
+      extendBody: true,
       body: SafeArea(child: _pages[_currentIndex]),
-
-      // Bottom navigation with modern styling
       bottomNavigationBar: SafeArea(
         top: false,
         bottom: true,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-          child: PhysicalShape(
-            elevation: 0,
-            color: Theme.of(context).scaffoldBackgroundColor,
-
-            clipper: ShapeBorderClipper(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(0),
-              ),
-            ),
-            child: Container(
-              height: 75,
-              decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                borderRadius: BorderRadius.circular(0),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _NavItem(
-                    index: 0,
-                    currentIndex: _currentIndex,
-                    icon: Icons.home_rounded,
-                    label: 'Home',
-                    onTap: _onTap,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                height: 68,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : Colors.white.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.12)
+                        : Colors.black.withValues(alpha: 0.06),
+                    width: 1,
                   ),
-                  _NavItem(
-                    index: 1,
-                    currentIndex: _currentIndex,
-                    icon: Icons.bar_chart_rounded,
-                    label: 'Analytics',
-                    onTap: _onTap,
-                  ),
-                  _NavItem(
-                    index: 2,
-                    currentIndex: _currentIndex,
-                    icon: Icons.add_box_rounded,
-                    label: 'Mark',
-                    onTap: _onTap,
-                  ),
-                  _NavItem(
-                    index: 3,
-                    currentIndex: _currentIndex,
-                    icon: Icons.calendar_month_rounded,
-                    label: 'Timetable',
-                    onTap: _onTap,
-                  ),
-                  _NavItem(
-                    index: 4,
-                    currentIndex: _currentIndex,
-                    icon: Icons.settings_rounded,
-                    label: 'Settings',
-                    onTap: _onTap,
-                  ),
-                ],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(_icons.length, (index) {
+                    return _NavItem(
+                      index: index,
+                      currentIndex: _currentIndex,
+                      icon: _icons[index],
+                      label: _labels[index],
+                      onTap: _onTap,
+                    );
+                  }),
+                ),
               ),
             ),
           ),
@@ -125,7 +122,8 @@ class _MainNavState extends State<MainNav> {
   }
 }
 
-/// Small nav item widget for consistent modern look
+/// Nav item: active = horizontal pill with icon + label inside,
+/// inactive = just icon
 class _NavItem extends StatelessWidget {
   final int index;
   final int currentIndex;
@@ -144,52 +142,74 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool selected = index == currentIndex;
-    final Color primary = Theme.of(context).colorScheme.primary;
-    final Color iconColor = selected
-        ? primary
-        : Theme.of(context).iconTheme.color!.withOpacity(0.7);
-    final TextStyle labelStyle = selected
-        ? Theme.of(context).textTheme.bodySmall!.copyWith(
-            color: primary,
-            fontWeight: FontWeight.w600,
-            fontSize: 10,
-          )
-        : Theme.of(context).textTheme.bodySmall!.copyWith(
-            color: Theme.of(
-              context,
-            ).textTheme.bodySmall!.color!.withOpacity(0.7),
-            fontSize: 10,
-          );
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+    final Color unselectedColor = isDark
+        ? Colors.white.withValues(alpha: 0.45)
+        : Colors.black.withValues(alpha: 0.4);
 
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => onTap(index),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                decoration: selected
-                    ? BoxDecoration(
-                        color: primary.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      )
-                    : null,
-                padding: const EdgeInsets.all(6),
-                child: Icon(icon, size: 20, color: iconColor),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: labelStyle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onTap(index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: selected ? 16 : 12,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          gradient: selected
+              ? LinearGradient(
+                  colors: [
+                    primary,
+                    primary.withValues(alpha: 0.85),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: primary.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: selected ? 22 : 23,
+              color: selected ? Colors.white : unselectedColor,
+            ),
+            // Animated label that expands/collapses
+            AnimatedSize(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+              child: selected
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: 0.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ),
       ),
     );
