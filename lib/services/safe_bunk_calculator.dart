@@ -62,11 +62,11 @@ class SafeBunkCalculator {
     return result.ceil(); // Round up to the next whole session
   }
 
-  /// Returns a status message based on the percentage.
-  static String getStatusMessage(double percentage) {
-    if (percentage >= 75) {
+  /// Returns a status message based on the percentage and the user's threshold.
+  static String getStatusMessage(double percentage, {double threshold = 75.0}) {
+    if (percentage >= threshold) {
       return "Safe";
-    } else if (percentage >= 65) {
+    } else if (percentage >= threshold - 10) {
       return "Warning";
     } else {
       return "Danger Zone";

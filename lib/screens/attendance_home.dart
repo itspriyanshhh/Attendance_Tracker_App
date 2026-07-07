@@ -5,6 +5,7 @@ import 'package:attendance_management/screens/safe_bunk_sheet.dart';
 import 'package:attendance_management/services/local_db_service.dart';
 import 'package:attendance_management/services/home_widget_service.dart';
 import 'package:attendance_management/services/sync_service.dart';
+import 'package:attendance_management/services/threshold_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -336,9 +337,10 @@ class AttendanceHomeState extends State<AttendanceHome>
   }
 
   Color _getStatusColor(double percentage, bool isDark) {
-    if (percentage >= 75) {
+    final threshold = ThresholdService.instance.threshold;
+    if (percentage >= threshold) {
       return isDark ? const Color(0xFF30D158) : const Color(0xFF34C759);
-    } else if (percentage >= 60) {
+    } else if (percentage >= threshold - 15) {
       return isDark ? const Color(0xFFFFD60A) : const Color(0xFFFF9500);
     } else {
       return isDark ? const Color(0xFFFF453A) : const Color(0xFFFF3B30);
@@ -621,7 +623,7 @@ class AttendanceHomeState extends State<AttendanceHome>
                     label: 'Attended',
                     value: '$_totalAttended',
                     icon: Icons.check_circle_outline_rounded,
-                    color: _getStatusColor(75, isDark),
+                    color: _getStatusColor(ThresholdService.instance.threshold, isDark),
                     isDark: isDark,
                   ),
                   const SizedBox(width: 16),

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/services/local_db_service.dart';
+import 'package:attendance_management/services/threshold_service.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -128,7 +129,7 @@ class PdfService {
           _buildSummaryItem(
             "Overall %",
             "${percentage.toStringAsFixed(1)}%",
-            color: percentage >= 75 ? PdfColors.green700 : PdfColors.red700,
+            color: percentage >= ThresholdService.instance.threshold ? PdfColors.green700 : PdfColors.red700,
           ),
         ],
       ),

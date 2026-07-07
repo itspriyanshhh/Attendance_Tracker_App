@@ -2,6 +2,7 @@
 import 'package:attendance_management/screens/splash_screen.dart';
 import 'package:attendance_management/services/local_db_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
+import 'package:attendance_management/services/threshold_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,6 +32,7 @@ void main() async {
   // Initialize timezone
   tz.initializeTimeZones();
   await NotificationService.instance.init();
+  await ThresholdService.instance.init();
   await _loadDarkMode();
   AttendanceMonitor.instance.start();
 

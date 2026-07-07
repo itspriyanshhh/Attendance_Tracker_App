@@ -1,4 +1,5 @@
 import 'package:attendance_management/services/safe_bunk_calculator.dart';
+import 'package:attendance_management/services/threshold_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -25,7 +26,7 @@ class _SafeBunkSheetState extends State<SafeBunkSheet> {
   int _labsToMiss = 0;
 
   // Recovery Mode State
-  double _targetPercentage = 75.0;
+  double _targetPercentage = ThresholdService.instance.threshold;
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +121,10 @@ class _SafeBunkSheetState extends State<SafeBunkSheet> {
       _lecturesToMiss,
       _labsToMiss,
     );
-    String status = SafeBunkCalculator.getStatusMessage(newPercentage);
+    String status = SafeBunkCalculator.getStatusMessage(
+      newPercentage,
+      threshold: ThresholdService.instance.threshold,
+    );
     Color statusColor;
     if (status == 'Safe')
       statusColor = Colors.green;

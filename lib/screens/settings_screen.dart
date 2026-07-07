@@ -6,6 +6,7 @@ import 'package:attendance_management/screens/profile_screen.dart';
 import 'package:attendance_management/services/local_db_service.dart';
 import 'package:attendance_management/services/firestore_service.dart';
 import 'package:attendance_management/services/notification_service.dart';
+import 'package:attendance_management/services/threshold_service.dart';
 import 'package:attendance_management/services/pdf_service.dart';
 import 'package:attendance_management/services/sync_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -113,6 +114,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _onThresholdChanged(double value) async {
     setState(() => _threshold = value);
     await NotificationService.instance.setThreshold(value);
+    await ThresholdService.instance.setThreshold(value);
   }
 
   Future<void> _pickDuration({
@@ -543,6 +545,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
 
+                _buildSectionHeader('ATTENDANCE', context),
+                _buildSettingTile(
+                  context,
+                  icon: Icons.speed_rounded,
+                  title: 'Attendance Threshold',
+                  subtitle: '${_threshold.round()}% — used across the app',
+                  trailing: SizedBox(
+                    width: 140,
+                    child: Slider(
+                      value: _threshold,
+                      min: 50,
+                      max: 95,
+                      divisions: 9,
+                      label: '${_threshold.round()}%',
+                      onChanged: _onThresholdChanged,
+                    ),
+                  ),
+                ),
+
                 _buildSectionHeader('APPEARANCE', context),
                 _buildSettingTile(
                   context,
@@ -574,23 +595,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: _remindersEnabled,
                     onChanged: _isProcessing ? null : _toggleReminders,
                     activeColor: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                _buildSettingTile(
-                  context,
-                  icon: Icons.speed_rounded,
-                  title: 'Attendance Threshold',
-                  subtitle: '${_threshold.round()}% — alerts when below this',
-                  trailing: SizedBox(
-                    width: 140,
-                    child: Slider(
-                      value: _threshold,
-                      min: 50,
-                      max: 95,
-                      divisions: 9,
-                      label: '${_threshold.round()}%',
-                      onChanged: _onThresholdChanged,
-                    ),
                   ),
                 ),
                 _buildSettingTile(

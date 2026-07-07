@@ -1,5 +1,6 @@
 import 'package:attendance_management/models/subject.dart';
 import 'package:attendance_management/services/local_db_service.dart';
+import 'package:attendance_management/services/threshold_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -224,11 +225,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             },
                           ),
                         ),
-                        // 75% Threshold Line
+                        // Threshold Line
                         extraLinesData: ExtraLinesData(
                           horizontalLines: [
                             HorizontalLine(
-                              y: 75,
+                              y: ThresholdService.instance.threshold,
                               color: Colors.green.withOpacity(0.5),
                               strokeWidth: 2,
                               dashArray: [10, 5],
@@ -244,7 +245,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
-                                labelResolver: (line) => '75%',
+                                labelResolver: (line) => '${ThresholdService.instance.threshold.round()}%',
                               ),
                             ),
                           ],
@@ -325,7 +326,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Column(
       children: data.map((d) {
         final pct = d['pct'] as double;
-        final color = pct >= 75
+        final color = pct >= ThresholdService.instance.threshold
             ? const Color(0xFF34C759) // Green
             : const Color(0xFFFF3B30); // Red
 
@@ -385,9 +386,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       final attended = sRecords.fold(0, (sum, r) => sum + r.attended);
       final pct = total > 0 ? (attended / total) * 100 : 0.0;
 
-      if (pct < 75) {
-        // Calculate needed
-        int needed = (3 * total - 4 * attended).ceil();
+      if (pct < ThresholdService.instance.threshold) {
+        // Calculate needed to reach threshold
+        final t = ThresholdService.instance.threshold / 100.0;
+        int needed = ((t * total - attended) / (1 - t)).ceil();
         if (needed > 0) {
           insights.add(
             _buildInsightCard(
@@ -395,13 +397,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               icon: Icons.warning_amber_rounded,
               color: Colors.orange,
               title: 'Attend next $needed classes',
-              subtitle: 'in ${s.name} to reach 75%',
+              subtitle: 'in ${s.name} to reach ${ThresholdService.instance.threshold.round()}%',
             ),
           );
         }
       } else {
-        // Calculate bunkable
-        int bunkable = ((4 * attended - 3 * total) / 3).floor();
+        // Calculate bunkable to stay above threshold
+        final t = ThresholdService.instance.threshold / 100.0;
+        int bunkable = ((attended - t * total) / t).floor();
         if (bunkable > 0) {
           insights.add(
             _buildInsightCard(
@@ -409,7 +412,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               icon: Icons.check_circle_outline_rounded,
               color: Colors.green,
               title: 'Can bunk $bunkable classes',
-              subtitle: 'in ${s.name} and stay above 75%',
+              subtitle: 'in ${s.name} and stay above ${ThresholdService.instance.threshold.round()}%',
             ),
           );
         }
