@@ -255,4 +255,20 @@ class LocalDbService {
     'attended': r.attended,
   };
 
+  /// Returns all subjects and records sorted by ID for deterministic hashing.
+  /// Used by SyncService to compute a content hash for incremental sync.
+  Future<({List<Subject> subjects, List<AttendanceRecord> records})>
+      getAllDataForHash() async {
+    final db = await _database;
+
+    final subjectRows =
+        await db.query('subjects', orderBy: 'id ASC');
+    final subjects = subjectRows.map(_rowToSubject).toList();
+
+    final recordRows =
+        await db.query('attendance_records', orderBy: 'id ASC');
+    final records = recordRows.map(_rowToRecord).toList();
+
+    return (subjects: subjects, records: records);
+  }
 }
