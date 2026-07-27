@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Handles:
 ///  1. First-login cloud-to-local restore
-///  2. Weekly local-to-cloud backup push (incremental — only changed data)
+///  2. Periodic local-to-cloud backup push (incremental — only changed data)
 ///  3. Single-device session enforcement
 class SyncService {
   SyncService._();
@@ -19,7 +19,7 @@ class SyncService {
 
   static const String _lastSyncKey = 'last_cloud_sync';
   static const String _deviceIdKey = 'device_id';
-  static const Duration _syncInterval = Duration(days: 7);
+  static const Duration _syncInterval = Duration(days: 3);
 
   /// Maximum operations per Firestore batch (Firestore limit is 500).
   static const int _batchLimit = 499;
@@ -271,10 +271,10 @@ class SyncService {
   }
 
   // ---------------------------------------------------------------------------
-  // Weekly push: Local → Firestore (INCREMENTAL)
+  // Periodic push: Local → Firestore (INCREMENTAL)
   // ---------------------------------------------------------------------------
 
-  /// Checks if 7 days have elapsed since the last sync and pushes if so.
+  /// Checks if 3 days have elapsed since the last sync and pushes if so.
   /// Called silently at app start.
   Future<void> syncIfDue() async {
     final prefs = await SharedPreferences.getInstance();
